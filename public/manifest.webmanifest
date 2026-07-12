@@ -1,0 +1,86 @@
+{
+  "name": "CoffeeMind AI — Coffee & Books Journal",
+  "short_name": "CoffeeMind",
+  "description": "Публичная PWA-версия CoffeeMind AI: журнал кофейных дегустаций, Taste DNA и оценки книг для каждого пользователя.",
+  "id": "/coffeemind-ai",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait",
+  "background_color": "#070706",
+  "theme_color": "#070706",
+  "categories": [
+    "food",
+    "books",
+    "lifestyle",
+    "productivity"
+  ],
+  "lang": "ru-RU",
+  "icons": [
+    {
+      "src": "/icons/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "version": "0.2.3",
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Новая дегустация",
+      "short_name": "Дегустация",
+      "description": "Быстро добавить новую кофейную дегустацию",
+      "url": "/add",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Журнал книг",
+      "short_name": "Книги",
+      "description": "Открыть оценки книг",
+      "url": "/books",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Taste DNA",
+      "short_name": "Taste DNA",
+      "description": "Открыть вкусовой профиль",
+      "url": "/profile",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
