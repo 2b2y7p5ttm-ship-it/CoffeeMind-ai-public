@@ -142,5 +142,5 @@ grant execute on function public.coffeemind_admin_recent_users(integer) to authe
 
 -- IMPORTANT: replace the email below with the email of your registered CoffeeMind owner account.
 insert into public.app_admins (user_id)
-select id from auth.users where lower(email) = lower('OWNER_EMAIL@example.com')
+select id from auth.users where lower(email) = lower('romangorb3366@gmail.com')
 on conflict (user_id) do nothing;
