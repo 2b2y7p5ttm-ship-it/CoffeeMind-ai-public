@@ -3,6 +3,7 @@ import { useTastings, Tasting } from '@/hooks/useTastings';
 import { ChevronLeft, Trash2, Pencil, Calendar, MapPin, Coffee, Droplets, Clock, Thermometer, Wind, Zap, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { ScoreBar } from '@/components/ScoreBar';
+import { FlavorRadar } from '@/components/FlavorRadar';
 import { flavorChipStyle, countryToFlag } from '@/lib/coffeeUtils';
 
 // ─── Compat helpers ───────────────────────────────────────────────────────────
@@ -104,6 +105,25 @@ export default function TastingDetail() {
   const doseRatio = tasting.doseGrams && tasting.beverageWeightGrams && Number(tasting.doseGrams) > 0
     ? `1:${(Number(tasting.beverageWeightGrams) / Number(tasting.doseGrams)).toFixed(1)}`
     : null;
+
+  const cupProfileMetrics = [
+    { label: 'Аромат', value: tasting.aromaScore ?? 5 },
+    { label: 'Вкус', value: tasting.flavorScore ?? 5 },
+    { label: 'Кислотность', value: tasting.acidity },
+    { label: 'Сладость', value: tasting.sweetness },
+    { label: 'Тело', value: tasting.body },
+    { label: 'Баланс', value: tasting.balance },
+    { label: 'Чистота', value: tasting.cleanCup },
+    { label: 'Послевкусие', value: aftertasteScore || 5 },
+  ];
+  const dominantAttribute = [...cupProfileMetrics].sort((a, b) => b.value - a.value)[0]?.label || 'Баланс';
+  const cupCharacter = tasting.acidity >= 8
+    ? 'Яркий и сочный'
+    : tasting.sweetness >= 8
+    ? 'Сладкий и округлый'
+    : tasting.body >= 8
+    ? 'Плотный и насыщенный'
+    : 'Сбалансированный';
 
   return (
     <div className="bg-background min-h-screen pb-10">
@@ -264,6 +284,25 @@ export default function TastingDetail() {
             </div>
           </section>
         )}
+
+        {/* ── Visual cup profile ─────────────────────────────────────────── */}
+        <section>
+          <SectionHeader icon={Zap} label="Cup Profile" />
+          <div className="coffee-panel rounded-[24px] p-4">
+            <FlavorRadar metrics={cupProfileMetrics} />
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {[
+                ['Самая яркая грань', dominantAttribute],
+                ['Характер', cupCharacter],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="bg-background/45 border border-white/[0.05] rounded-2xl px-3 py-3">
+                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/45 font-semibold block mb-1">{label}</span>
+                  <span className="text-[12px] text-foreground font-semibold">{String(value)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* ── Score bars ──────────────────────────────────────────────────── */}
         <section>

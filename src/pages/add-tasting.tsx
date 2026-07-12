@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useTastings } from '@/hooks/useTastings';
 import type { Tasting } from '@/hooks/useTastings';
 import { ScoreSlider } from '@/components/ScoreSlider';
+import { FlavorRadar } from '@/components/FlavorRadar';
 import { CURATED_PHOTOS, flavorChipStyle, countryToFlag, getCardPhoto } from '@/lib/coffeeUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -482,6 +483,30 @@ function Step3({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
         <ScoreSlider label="Баланс" value={d.balance} onChange={(v) => u({ balance: v })} />
         <ScoreSlider label="Чистота чашки" value={d.cleanCup} onChange={(v) => u({ cleanCup: v })} />
         <ScoreSlider label="Послевкусие" value={d.aftertaste} onChange={(v) => u({ aftertaste: v })} />
+      </div>
+
+      <div className="coffee-panel rounded-[24px] p-4">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Профиль чашки</p>
+            <p className="text-[12px] text-muted-foreground mt-1">Диаграмма обновляется сразу при изменении оценок.</p>
+          </div>
+          <span className="text-[10px] text-muted-foreground/50 font-semibold">LIVE</span>
+        </div>
+        <FlavorRadar
+          compact
+          size={250}
+          metrics={[
+            { label: 'Аромат', value: d.aromaScore },
+            { label: 'Вкус', value: d.flavorScore },
+            { label: 'Кислотность', value: d.acidity },
+            { label: 'Сладость', value: d.sweetness },
+            { label: 'Тело', value: d.body },
+            { label: 'Баланс', value: d.balance },
+            { label: 'Чистота', value: d.cleanCup },
+            { label: 'Послевкусие', value: d.aftertaste },
+          ]}
+        />
       </div>
 
       <div className="bg-primary/[0.07] border border-primary/20 rounded-[24px] p-5 space-y-4">
