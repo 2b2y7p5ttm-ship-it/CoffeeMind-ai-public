@@ -18,10 +18,10 @@ function Meter({ label, value }: { label: string; value: number }) {
   return (
     <div>
       <div className="flex items-center justify-between text-[12px] mb-1.5">
-        <span className="text-white/65">{label}</span>
-        <span className="font-semibold text-white/90">{value.toFixed(1)}</span>
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-semibold text-foreground">{value.toFixed(1)}</span>
       </div>
-      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
         <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, value * 10)}%` }} transition={{ duration: 0.7 }} className="h-full rounded-full bg-gradient-to-r from-primary/55 to-primary" />
       </div>
     </div>
@@ -60,37 +60,37 @@ export default function Stats() {
         <div className="text-right"><p className="text-2xl font-semibold text-primary">{profile.sampleSize}</p><p className="text-[10px] text-muted-foreground uppercase tracking-wider">чашек</p></div>
       </header>
 
-      <section className="relative overflow-hidden rounded-[28px] border border-primary/15 bg-gradient-to-br from-primary/[0.14] via-card/90 to-card p-5">
+      <section className="cm-dna-identity relative overflow-hidden rounded-[28px] border p-5">
         <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-black/25 border border-white/[0.07] flex items-center justify-center text-3xl">{profile.archetype.emoji}</div>
+          <div className="cm-dna-avatar w-14 h-14 rounded-2xl flex items-center justify-center text-3xl">{profile.archetype.emoji}</div>
           <div className="flex-1">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-white/40">Taste Identity</p>
-            <h2 className="font-serif text-2xl text-white mt-1">{profile.archetype.title}</h2>
-            <p className="text-[12px] leading-5 text-white/55 mt-2">{profile.archetype.subtitle}</p>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-[color:var(--dna-muted)]">Taste Identity</p>
+            <h2 className="font-serif text-2xl text-[color:var(--dna-text)] mt-1">{profile.archetype.title}</h2>
+            <p className="text-[12px] leading-5 text-[color:var(--dna-subtle)] mt-2">{profile.archetype.subtitle}</p>
           </div>
-          <div className="rounded-full px-2.5 py-1 bg-black/25 border border-white/[0.06] text-[10px] text-primary">{profile.archetype.confidence}%</div>
+          <div className="cm-dna-confidence rounded-full px-2.5 py-1 text-[10px] text-primary">{profile.archetype.confidence}%</div>
         </div>
         <div className="relative mt-5">
-          <div className="flex justify-between text-[10px] mb-2"><span className="text-white/45">{profile.maturityLabel}</span><span className="text-white/60">{profile.maturity}%</span></div>
-          <div className="h-2 rounded-full bg-black/30 overflow-hidden"><motion.div initial={{ width: 0 }} animate={{ width: `${profile.maturity}%` }} className="h-full rounded-full bg-primary" /></div>
-          <p className="text-[10px] text-white/35 mt-2">{Math.max(0, 20 - profile.sampleSize)} дегустаций до полного профиля</p>
+          <div className="flex justify-between text-[10px] mb-2"><span className="text-[color:var(--dna-muted)]">{profile.maturityLabel}</span><span className="text-[color:var(--dna-subtle)]">{profile.maturity}%</span></div>
+          <div className="cm-dna-track h-2 rounded-full overflow-hidden"><motion.div initial={{ width: 0 }} animate={{ width: `${profile.maturity}%` }} className="h-full rounded-full bg-primary" /></div>
+          <p className="text-[10px] text-[color:var(--dna-muted)] mt-2">{Math.max(0, 20 - profile.sampleSize)} дегустаций до полного профиля</p>
         </div>
       </section>
 
       <section className="grid grid-cols-2 gap-3">
-        <div className="rounded-[22px] border border-white/[0.06] bg-card/65 p-4"><Compass size={18} className="text-primary mb-3" /><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Разнообразие</p><p className="text-2xl font-semibold mt-1">{profile.diversityIndex}%</p></div>
-        <div className="rounded-[22px] border border-white/[0.06] bg-card/65 p-4"><Sparkles size={18} className="text-primary mb-3" /><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Средний балл</p><p className="text-2xl font-semibold mt-1">{profile.averages.overallScore.toFixed(1)}</p></div>
+        <div className="rounded-[22px] border border-border bg-card p-4"><Compass size={18} className="text-primary mb-3" /><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Разнообразие</p><p className="text-2xl font-semibold mt-1">{profile.diversityIndex}%</p></div>
+        <div className="rounded-[22px] border border-border bg-card p-4"><Sparkles size={18} className="text-primary mb-3" /><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Средний балл</p><p className="text-2xl font-semibold mt-1">{profile.averages.overallScore.toFixed(1)}</p></div>
       </section>
 
-      <section className="rounded-[26px] border border-white/[0.06] bg-card/65 p-5">
+      <section className="rounded-[26px] border border-border bg-card p-5">
         <div className="flex items-center gap-2 mb-3"><Dna size={17} className="text-primary" /><p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Вкусовая карта</p></div>
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={radar} margin={{ top: 14, right: 24, bottom: 14, left: 24 }}>
-              <PolarGrid stroke="rgba(255,255,255,0.06)" />
-              <PolarAngleAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.48)', fontSize: 10 }} />
-              <Radar dataKey="value" stroke="#D9A35F" fill="#D9A35F" fillOpacity={0.16} strokeWidth={2} dot={{ r: 3, fill: '#D9A35F', strokeWidth: 0 }} />
+              <PolarGrid stroke="var(--chart-grid)" />
+              <PolarAngleAxis dataKey="name" tick={{ fill: 'var(--chart-label)', fontSize: 10 }} />
+              <Radar dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.18} strokeWidth={2} dot={{ r: 3, fill: 'hsl(var(--primary))', strokeWidth: 0 }} />
             </RadarChart>
           </ResponsiveContainer>
         </div>
@@ -102,7 +102,7 @@ export default function Stats() {
       </section>
 
       {profile.topDescriptors.length > 0 && (
-        <section className="rounded-[26px] border border-white/[0.06] bg-card/65 p-5">
+        <section className="rounded-[26px] border border-border bg-card p-5">
           <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-4">Вкусовой почерк</p>
           <div className="flex flex-wrap gap-2">
             {profile.topDescriptors.map((item) => {
@@ -114,16 +114,16 @@ export default function Stats() {
       )}
 
       <section className="grid gap-3">
-        {profile.topCountries[0] && <div className="rounded-[22px] border border-white/[0.06] bg-card/65 p-4 flex items-center gap-4"><MapPin className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Любимое происхождение</p><p className="font-medium mt-1">{profile.topCountries[0].name} · {profile.topCountries[0].share}%</p></div></div>}
-        {profile.topProcesses[0] && <div className="rounded-[22px] border border-white/[0.06] bg-card/65 p-4 flex items-center gap-4"><Droplets className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Любимая обработка</p><p className="font-medium mt-1">{profile.topProcesses[0].name} · {profile.topProcesses[0].averageScore.toFixed(1)} балла</p></div></div>}
-        {profile.topMethods[0] && <div className="rounded-[22px] border border-white/[0.06] bg-card/65 p-4 flex items-center gap-4"><Coffee className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Основной способ</p><p className="font-medium mt-1">{profile.topMethods[0].name}</p></div></div>}
+        {profile.topCountries[0] && <div className="rounded-[22px] border border-border bg-card p-4 flex items-center gap-4"><MapPin className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Любимое происхождение</p><p className="font-medium mt-1">{profile.topCountries[0].name} · {profile.topCountries[0].share}%</p></div></div>}
+        {profile.topProcesses[0] && <div className="rounded-[22px] border border-border bg-card p-4 flex items-center gap-4"><Droplets className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Любимая обработка</p><p className="font-medium mt-1">{profile.topProcesses[0].name} · {profile.topProcesses[0].averageScore.toFixed(1)} балла</p></div></div>}
+        {profile.topMethods[0] && <div className="rounded-[22px] border border-border bg-card p-4 flex items-center gap-4"><Coffee className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Основной способ</p><p className="font-medium mt-1">{profile.topMethods[0].name}</p></div></div>}
       </section>
 
       {insights.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-3"><Sparkles size={16} className="text-primary" /><p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">CoffeeMind Insights</p></div>
           <div className="space-y-3">
-            {insights.map((insight) => <article key={insight.title} className={`rounded-[22px] border p-4 ${TONE_CLASS[insight.tone]}`}><h3 className="text-[13px] font-semibold">{insight.title}</h3><p className="text-[12px] leading-5 text-white/55 mt-1.5">{insight.body}</p></article>)}
+            {insights.map((insight) => <article key={insight.title} className={`rounded-[22px] border p-4 ${TONE_CLASS[insight.tone]}`}><h3 className="text-[13px] font-semibold">{insight.title}</h3><p className="text-[12px] leading-5 text-muted-foreground mt-1.5">{insight.body}</p></article>)}
           </div>
         </section>
       )}

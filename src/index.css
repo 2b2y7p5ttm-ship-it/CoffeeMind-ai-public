@@ -475,3 +475,97 @@ html.dark body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration:.01ms!important; animation-iteration-count:1!important; scroll-behavior:auto!important; transition-duration:.01ms!important; }
 }
+
+
+/* ─── CoffeeMind Light Theme Contrast v2 ───────────────────────────────── */
+html.light {
+  --background: 38 38% 96%;
+  --foreground: 220 30% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 30% 12%;
+  --card-border: 28 18% 85%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 30% 12%;
+  --popover-border: 28 18% 85%;
+  --border: 28 16% 84%;
+  --input: 32 24% 92%;
+  --ring: 12 94% 58%;
+  --primary: 12 94% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 32 24% 91%;
+  --secondary-foreground: 220 26% 18%;
+  --muted: 32 22% 92%;
+  --muted-foreground: 220 10% 42%;
+  --accent: 32 25% 89%;
+  --accent-foreground: 220 26% 18%;
+  --app-canvas: 36 30% 91%;
+  --chart-grid: rgba(68, 75, 86, 0.16);
+  --chart-axis: rgba(68, 75, 86, 0.14);
+  --chart-label: #59616d;
+  --dna-text: #f8fafc;
+  --dna-subtle: rgba(248,250,252,.72);
+  --dna-muted: rgba(248,250,252,.5);
+}
+html.dark {
+  --chart-grid: rgba(255,255,255,0.10);
+  --chart-axis: rgba(255,255,255,0.08);
+  --chart-label: rgba(255,255,255,0.62);
+  --dna-text: #ffffff;
+  --dna-subtle: rgba(255,255,255,.62);
+  --dna-muted: rgba(255,255,255,.44);
+}
+
+html.light body {
+  background:
+    radial-gradient(circle at 18% -6%, rgba(255, 92, 45, .12), transparent 24rem),
+    linear-gradient(180deg, #f6f1e9 0%, #eee7dc 100%);
+}
+html.light .cm-bottom-nav {
+  background: rgba(255,255,255,.92);
+  border-color: rgba(43,50,61,.10);
+  box-shadow: 0 18px 52px rgba(50,42,34,.14);
+}
+html.light .cm-feature-card,
+html.light .cm-insight-card,
+html.light [class*="bg-card"] {
+  box-shadow: 0 14px 36px rgba(55,46,38,.08);
+}
+html.light .cm-dna-identity {
+  background:
+    radial-gradient(circle at 82% 10%, rgba(255,86,45,.34), transparent 11rem),
+    linear-gradient(145deg, #132536 0%, #0b1824 58%, #07111a 100%);
+  border-color: rgba(255,255,255,.10);
+  box-shadow: 0 24px 58px rgba(14,26,38,.22);
+}
+html.dark .cm-dna-identity {
+  background:
+    radial-gradient(circle at 82% 10%, rgba(255,86,45,.24), transparent 11rem),
+    linear-gradient(145deg, #12283a 0%, #08131d 62%, #050b11 100%);
+  border-color: rgba(255,255,255,.08);
+  box-shadow: 0 24px 58px rgba(0,0,0,.34);
+}
+.cm-dna-avatar {
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.13);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+.cm-dna-confidence {
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(10px);
+}
+.cm-dna-track { background: rgba(255,255,255,.16); }
+html.light .recharts-polar-grid-concentric-polygon,
+html.light .recharts-polar-grid-angle line { stroke: var(--chart-grid); }
+html.light .recharts-polar-angle-axis-tick-value,
+html.light .recharts-text { fill: var(--chart-label); }
+html.light .recharts-wrapper { color: var(--foreground); }
+html.light .text-white\/65,
+html.light .text-white\/90,
+html.light .text-white\/55,
+html.light .text-white\/60,
+html.light .text-white\/45,
+html.light .text-white\/40,
+html.light .text-white\/35 {
+  color: hsl(var(--foreground));
+}

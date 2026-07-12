@@ -62,7 +62,7 @@ export function FlavorRadar({ metrics, size = 280, compact = false }: FlavorRada
             key={level}
             points={polygonPoints(safeMetrics.map((metric) => ({ ...metric, value: 10 })), radius * level, center, center)}
             fill="none"
-            stroke="rgba(255,255,255,0.09)"
+            stroke="var(--chart-grid)"
             strokeWidth="1"
           />
         ))}
@@ -80,7 +80,7 @@ export function FlavorRadar({ metrics, size = 280, compact = false }: FlavorRada
                 y1={center}
                 x2={edge.x}
                 y2={edge.y}
-                stroke="rgba(255,255,255,0.08)"
+                stroke="var(--chart-axis)"
                 strokeWidth="1"
               />
               <text
@@ -88,7 +88,7 @@ export function FlavorRadar({ metrics, size = 280, compact = false }: FlavorRada
                 y={label.y}
                 textAnchor={anchor}
                 dominantBaseline="middle"
-                fill="rgba(255,255,255,0.58)"
+                fill="var(--chart-label)"
                 fontSize={compact ? 8.5 : 10}
                 fontWeight="600"
                 letterSpacing="0.2"
@@ -118,7 +118,7 @@ export function FlavorRadar({ metrics, size = 280, compact = false }: FlavorRada
               cy={point.y}
               r={compact ? 2.8 : 3.6}
               fill="hsl(var(--primary))"
-              stroke="rgba(10,10,10,0.9)"
+              stroke="hsl(var(--card))"
               strokeWidth="1.4"
             />
           );
