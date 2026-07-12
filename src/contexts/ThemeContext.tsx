@@ -34,10 +34,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
+    root.classList.add('theme-transitioning');
     root.classList.toggle('dark', resolvedTheme === 'dark');
     root.classList.toggle('light', resolvedTheme === 'light');
     root.style.colorScheme = resolvedTheme;
     localStorage.setItem(STORAGE_KEY, mode);
+
+    const timeout = window.setTimeout(() => root.classList.remove('theme-transitioning'), 460);
+    return () => window.clearTimeout(timeout);
   }, [mode, resolvedTheme]);
 
   const value = useMemo<ThemeContextValue>(() => ({

@@ -1,3 +1,5 @@
+import { motion, useReducedMotion } from 'framer-motion';
+
 interface FlavorRadarMetric {
   label: string;
   value: number;
@@ -28,12 +30,15 @@ function polygonPoints(metrics: FlavorRadarMetric[], radius: number, cx: number,
 
 export function FlavorRadar({ metrics, size = 280, compact = false }: FlavorRadarProps) {
   const safeMetrics = metrics.length >= 3 ? metrics : [];
+  const reduceMotion = useReducedMotion();
   if (!safeMetrics.length) return null;
 
   const center = size / 2;
   const labelPadding = compact ? 34 : 46;
   const radius = center - labelPadding;
   const levels = [0.25, 0.5, 0.75, 1];
+  const fullPoints = polygonPoints(safeMetrics, radius, center, center);
+  const collapsedPoints = safeMetrics.map(() => `${center},${center}`).join(' ');
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -57,13 +62,16 @@ export function FlavorRadar({ metrics, size = 280, compact = false }: FlavorRada
           </filter>
         </defs>
 
-        {levels.map((level) => (
-          <polygon
+        {levels.map((level, index) => (
+          <motion.polygon
             key={level}
             points={polygonPoints(safeMetrics.map((metric) => ({ ...metric, value: 10 })), radius * level, center, center)}
             fill="none"
             stroke="var(--chart-grid)"
             strokeWidth="1"
+            initial={reduceMotion ? false : { opacity: 0, scale: 0.82, transformOrigin: 'center' }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: index * 0.08, duration: 0.42 }}
           />
         ))}
 
@@ -75,15 +83,8 @@ export function FlavorRadar({ metrics, size = 280, compact = false }: FlavorRada
 
           return (
             <g key={metric.label}>
-              <line
-                x1={center}
-                y1={center}
-                x2={edge.x}
-                y2={edge.y}
-                stroke="var(--chart-axis)"
-                strokeWidth="1"
-              />
-              <text
+              <line x1={center} y1={center} x2={edge.x} y2={edge.y} stroke="var(--chart-axis)" strokeWidth="1" />
+              <motion.text
                 x={label.x}
                 y={label.y}
                 textAnchor={anchor}
@@ -92,15 +93,20 @@ export function FlavorRadar({ metrics, size = 280, compact = false }: FlavorRada
                 fontSize={compact ? 8.5 : 10}
                 fontWeight="600"
                 letterSpacing="0.2"
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.35 + index * 0.05 }}
               >
                 {metric.label}
-              </text>
+              </motion.text>
             </g>
           );
         })}
 
-        <polygon
-          points={polygonPoints(safeMetrics, radius, center, center)}
+        <motion.polygon
+          initial={reduceMotion ? false : { points: collapsedPoints, opacity: 0 }}
+          animate={{ points: fullPoints, opacity: 1 }}
+          transition={{ duration: 0.85, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
           fill="url(#flavorRadarFill)"
           stroke="hsl(var(--primary))"
           strokeWidth="2"
@@ -112,7 +118,7 @@ export function FlavorRadar({ metrics, size = 280, compact = false }: FlavorRada
           const angle = -Math.PI / 2 + (Math.PI * 2 * index) / safeMetrics.length;
           const point = polarPoint(center, center, radius * Math.max(0, Math.min(10, metric.value)) / 10, angle);
           return (
-            <circle
+            <motion.circle
               key={`${metric.label}-point`}
               cx={point.x}
               cy={point.y}
@@ -120,6 +126,9 @@ export function FlavorRadar({ metrics, size = 280, compact = false }: FlavorRada
               fill="hsl(var(--primary))"
               stroke="hsl(var(--card))"
               strokeWidth="1.4"
+              initial={reduceMotion ? false : { opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.62 + index * 0.06, type: 'spring', stiffness: 420, damping: 24 }}
             />
           );
         })}
