@@ -10,6 +10,7 @@ import { useTastings } from '@/hooks/useTastings';
 import type { Tasting } from '@/hooks/useTastings';
 import { ScoreSlider } from '@/components/ScoreSlider';
 import { FlavorRadar } from '@/components/FlavorRadar';
+import { FlavorWheel } from '@/components/FlavorWheel';
 import { CURATED_PHOTOS, flavorChipStyle, countryToFlag, getCardPhoto } from '@/lib/coffeeUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -157,19 +158,6 @@ const STEP_META = [
 ] as const;
 const PROCESS_OPTIONS = ['Washed', 'Natural', 'Honey', 'Anaerobic', 'Infused', 'Wet-Hulled', 'Other'];
 const BREW_METHODS = ['V60', 'Espresso', 'AeroPress', 'Chemex', 'French Press', 'Kalita Wave', 'Moka Pot', 'Cold Brew', 'Clever Dripper'];
-
-// ─── SCA Flavor Wheel ─────────────────────────────────────────────────────────
-
-const SCA_WHEEL = [
-  { id: 'floral',   label: 'Floral',       emoji: '🌸', bg: 'bg-purple-950/60',  border: 'border-purple-800/30',  text: 'text-purple-300',  descriptors: ['Jasmine', 'Rose', 'Chamomile', 'Lavender', 'Orange Blossom', 'Elderflower'] },
-  { id: 'fruity',   label: 'Fruity',       emoji: '🍒', bg: 'bg-rose-950/60',    border: 'border-rose-800/30',    text: 'text-rose-300',    descriptors: ['Blueberry', 'Strawberry', 'Cherry', 'Peach', 'Mango', 'Pineapple', 'Orange', 'Lemon', 'Passionfruit', 'Apricot', 'Plum'] },
-  { id: 'sweet',    label: 'Sweet',        emoji: '🍯', bg: 'bg-amber-950/60',   border: 'border-amber-800/30',   text: 'text-amber-300',   descriptors: ['Caramel', 'Honey', 'Toffee', 'Brown Sugar', 'Vanilla', 'Maple', 'Molasses'] },
-  { id: 'nutty',    label: 'Nutty & Cocoa',emoji: '🥜', bg: 'bg-orange-950/60',  border: 'border-orange-800/30',  text: 'text-orange-300',  descriptors: ['Hazelnut', 'Almond', 'Walnut', 'Dark Chocolate', 'Milk Chocolate', 'Cocoa', 'Peanut Butter'] },
-  { id: 'spice',    label: 'Spice',        emoji: '🌶', bg: 'bg-red-950/60',     border: 'border-red-800/30',     text: 'text-red-300',     descriptors: ['Cinnamon', 'Clove', 'Black Pepper', 'Cardamom', 'Star Anise', 'Nutmeg'] },
-  { id: 'roasted',  label: 'Roasted',      emoji: '🔥', bg: 'bg-stone-900/60',   border: 'border-stone-700/30',   text: 'text-stone-300',   descriptors: ['Smoky', 'Tobacco', 'Cedar', 'Leather', 'Dark Roast', 'Ash'] },
-  { id: 'herbal',   label: 'Herbal & Tea', emoji: '🌿', bg: 'bg-emerald-950/60', border: 'border-emerald-800/30', text: 'text-emerald-300', descriptors: ['Black Tea', 'Green Tea', 'Bergamot', 'Mint', 'Basil', 'Chamomile Tea'] },
-  { id: 'citrus',   label: 'Citrus & Sour',emoji: '🍋', bg: 'bg-yellow-950/60',  border: 'border-yellow-800/30',  text: 'text-yellow-300',  descriptors: ['Grapefruit', 'Lime', 'Lemon Zest', 'Tamarind', 'Hibiscus', 'Red Wine'] },
-];
 
 // ─── Animation ────────────────────────────────────────────────────────────────
 
@@ -537,56 +525,48 @@ function Step3({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
 // ─── Step 4 — Flavor ──────────────────────────────────────────────────────────
 
 function Step4({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void }) {
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const MAX = 3;
-  const selected = d.topThreeDescriptors;
-
-  const toggle = (descriptor: string) => {
-    if (selected.includes(descriptor)) {
-      u({ topThreeDescriptors: selected.filter((x) => x !== descriptor) });
-    } else if (selected.length < MAX) {
-      u({ topThreeDescriptors: [...selected, descriptor] });
-    }
-  };
-
-  const category = activeCategory ? SCA_WHEEL.find((c) => c.id === activeCategory) : null;
 
   return (
     <div className="space-y-5">
-      <CoachHint title="Правило трех дескрипторов">
-        Выбери не самые красивые слова, а самые главные. Один дескриптор может отвечать за аромат, второй за вкус, третий за послевкусие.
+      <CoachHint title="Правило трёх дескрипторов">
+        Выбери три доминирующие ноты: одну для аромата, одну для основного вкуса и одну для послевкусия. Частые вкусы CoffeeMind запомнит и поднимет выше.
       </CoachHint>
 
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] font-semibold text-foreground">Три главных дескриптора</p>
-          <p className="text-muted-foreground text-[12px] mt-0.5">Выбери категорию и отметь до 3 вкусов.</p>
+          <p className="text-[13px] font-semibold text-foreground">Главные ноты чашки</p>
+          <p className="text-muted-foreground text-[12px] mt-0.5">Ищи по названию или двигайся от группы к конкретному вкусу.</p>
         </div>
         <motion.span
-          key={selected.length}
+          key={d.topThreeDescriptors.length}
           initial={{ scale: 0.8 }}
           animate={{ scale: 1 }}
-          className={`flex-shrink-0 text-[12px] font-bold px-3 py-1 rounded-full ${selected.length === MAX ? 'bg-primary/20 text-primary' : 'bg-card text-muted-foreground'}`}
+          className={`flex-shrink-0 text-[12px] font-bold px-3 py-1 rounded-full ${d.topThreeDescriptors.length === MAX ? 'bg-primary/20 text-primary' : 'bg-card text-muted-foreground'}`}
         >
-          {selected.length} / {MAX}
+          {d.topThreeDescriptors.length} / {MAX}
         </motion.span>
       </div>
 
       <AnimatePresence>
-        {selected.length > 0 && (
+        {d.topThreeDescriptors.length > 0 && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex flex-wrap gap-2 p-3 bg-card/40 border border-white/[0.07] rounded-xl overflow-hidden"
+            className="flex flex-wrap gap-2 p-3 bg-card/40 border border-white/[0.07] rounded-2xl overflow-hidden"
           >
-            {selected.map((s) => {
-              const { bg, text, ring } = flavorChipStyle(s);
+            {d.topThreeDescriptors.map((descriptor, index) => {
+              const { bg, text, ring } = flavorChipStyle(descriptor);
               return (
-                <button key={s} type="button" onClick={() => toggle(s)}
-                  className={`${bg} ${text} ${ring} ring-1 flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full`}>
-                  <Check size={10} strokeWidth={3} />
-                  {s}
+                <button
+                  key={descriptor}
+                  type="button"
+                  onClick={() => u({ topThreeDescriptors: d.topThreeDescriptors.filter((item) => item !== descriptor) })}
+                  className={`${bg} ${text} ${ring} ring-1 flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full`}
+                >
+                  <span className="text-[9px] opacity-55">{index + 1}</span>
+                  {descriptor}
                   <X size={9} strokeWidth={2.5} className="opacity-50 ml-0.5" />
                 </button>
               );
@@ -595,74 +575,20 @@ function Step4({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
         )}
       </AnimatePresence>
 
-      <AnimatePresence mode="wait">
-        {category ? (
-          <motion.div key="descriptors"
-            initial={{ x: '30%', opacity: 0 }} animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '-30%', opacity: 0 }} transition={{ type: 'spring', stiffness: 380, damping: 34 }}
-            className="space-y-4"
-          >
-            <button type="button" onClick={() => setActiveCategory(null)}
-              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-              <ChevronLeft size={16} />
-              <span className="text-[13px] font-medium">Назад к категориям</span>
-            </button>
-
-            <div className={`flex items-center gap-3 p-4 rounded-2xl border ${category.bg} ${category.border}`}>
-              <span className="text-3xl">{category.emoji}</span>
-              <h3 className={`font-serif text-xl font-medium ${category.text}`}>{category.label}</h3>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {category.descriptors.map((descriptor) => {
-                const isSelected = selected.includes(descriptor);
-                const isDisabled = !isSelected && selected.length >= MAX;
-                return (
-                  <motion.button key={descriptor} type="button" onClick={() => toggle(descriptor)}
-                    disabled={isDisabled}
-                    whileTap={!isDisabled ? { scale: 0.91 } : undefined}
-                    className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[13px] font-medium ring-1 transition-all ${
-                      isSelected
-                        ? `${category.bg} ${category.text} ${category.border} shadow-md`
-                        : isDisabled
-                        ? 'bg-card/20 text-muted-foreground/25 ring-white/5 cursor-not-allowed'
-                        : 'bg-card/50 text-muted-foreground ring-white/[0.08] hover:ring-white/25 hover:text-foreground'
-                    }`}
-                  >
-                    {isSelected && <Check size={11} strokeWidth={3} />}
-                    {descriptor}
-                  </motion.button>
-                );
-              })}
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div key="categories"
-            initial={{ x: '-30%', opacity: 0 }} animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '30%', opacity: 0 }} transition={{ type: 'spring', stiffness: 380, damping: 34 }}
-            className="grid grid-cols-2 gap-3"
-          >
-            {SCA_WHEEL.map((cat) => (
-              <motion.button key={cat.id} type="button" onClick={() => setActiveCategory(cat.id)}
-                whileTap={{ scale: 0.95 }}
-                className={`${cat.bg} border ${cat.border} rounded-[22px] p-4 flex flex-col items-start gap-2 text-left hover:brightness-110 transition-all`}>
-                <span className="text-2xl">{cat.emoji}</span>
-                <span className={`text-[13px] font-semibold ${cat.text} leading-tight`}>{cat.label}</span>
-                <span className="text-[9px] text-white/25 font-medium">{cat.descriptors.length} flavors</span>
-              </motion.button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <FlavorWheel
+        selected={d.topThreeDescriptors}
+        onChange={(next) => u({ topThreeDescriptors: next })}
+        maxSelected={MAX}
+      />
 
       <div className="border-t border-white/[0.05] pt-5">
-        <Field label="Дополнительные дескрипторы">
+        <Field label="Свои и дополнительные дескрипторы">
           <TagInput
             tags={d.additionalDescriptors}
             onChange={(v) => u({ additionalDescriptors: v })}
             placeholder="Введи вкус и нажми Enter…"
           />
-          <p className="text-[10px] text-muted-foreground/40 mt-1.5">Нажимай Enter или запятую после каждого дескриптора.</p>
+          <p className="text-[10px] text-muted-foreground/40 mt-1.5">Здесь можно сохранить необычные или очень конкретные ассоциации без ограничения.</p>
         </Field>
       </div>
     </div>
