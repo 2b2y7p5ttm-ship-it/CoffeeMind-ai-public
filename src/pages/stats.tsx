@@ -1,246 +1,129 @@
 import { useMemo } from 'react';
-import { useTastings, Tasting } from '@/hooks/useTastings';
-import {
-  ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip,
-  BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, Radar,
-} from 'recharts';
-import { format, parseISO } from 'date-fns';
+import { motion } from 'framer-motion';
+import { Dna, Sparkles, Compass, Droplets, Coffee, MapPin } from 'lucide-react';
+import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from 'recharts';
+import { useTastings } from '@/hooks/useTastings';
+import { buildTasteProfile } from '@/lib/intelligence/tasteProfile';
+import { generateTasteInsights } from '@/lib/intelligence/insights';
 import { flavorChipStyle } from '@/lib/coffeeUtils';
 
-// ─── Compat helpers ───────────────────────────────────────────────────────────
-
-function getProcessing(t: Tasting): string { return t.processing || t.process || ''; }
-function getBrewMethod(t: Tasting): string { return t.brewMethod || t.brewingMethod || ''; }
-function getAftertasteScore(t: Tasting): number {
-  const v = Number(t.aftertaste);
-  return isFinite(v) && v > 0 ? v : (t.aftertasteScore ?? 5);
-}
-function getAllDescriptors(t: Tasting): string[] {
-  return [
-    ...(t.topThreeDescriptors || []),
-    ...(t.additionalDescriptors || []),
-    ...(t.flavorDescriptors || []),
-  ];
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function avg(arr: number[]): number {
-  if (!arr.length) return 0;
-  return Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10;
-}
-
-const tooltipStyle = {
-  contentStyle: {
-    backgroundColor: '#161616',
-    border: '1px solid rgba(255,255,255,0.07)',
-    borderRadius: '12px',
-    fontSize: '12px',
-    color: 'hsl(0 0% 92%)',
-  },
-  itemStyle: { color: '#D9A35F' },
-  cursor: { stroke: 'rgba(217,163,95,0.15)' },
+const TONE_CLASS = {
+  gold: 'border-amber-400/15 bg-amber-400/[0.06]',
+  berry: 'border-fuchsia-400/15 bg-fuchsia-400/[0.06]',
+  blue: 'border-sky-400/15 bg-sky-400/[0.06]',
+  green: 'border-emerald-400/15 bg-emerald-400/[0.06]',
 };
 
-// ─── Stats Page ───────────────────────────────────────────────────────────────
+function Meter({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-[12px] mb-1.5">
+        <span className="text-white/65">{label}</span>
+        <span className="font-semibold text-white/90">{value.toFixed(1)}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+        <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, value * 10)}%` }} transition={{ duration: 0.7 }} className="h-full rounded-full bg-gradient-to-r from-primary/55 to-primary" />
+      </div>
+    </div>
+  );
+}
 
 export default function Stats() {
   const { tastings } = useTastings();
+  const profile = useMemo(() => buildTasteProfile(tastings), [tastings]);
+  const insights = useMemo(() => generateTasteInsights(tastings, profile), [tastings, profile]);
+  const radar = [
+    { name: 'Кислотность', value: profile.averages.acidity },
+    { name: 'Сладость', value: profile.averages.sweetness },
+    { name: 'Тело', value: profile.averages.body },
+    { name: 'Послевкусие', value: profile.averages.aftertaste },
+    { name: 'Баланс', value: profile.averages.balance },
+  ];
 
-  const data = useMemo(() => {
-    const total = tastings.length;
-    if (!total) return null;
-
-    // Radar (6 axes)
-    const radarData = [
-      { attribute: 'Acidity',   value: avg(tastings.map((t) => t.acidity)) },
-      { attribute: 'Sweetness', value: avg(tastings.map((t) => t.sweetness)) },
-      { attribute: 'Body',      value: avg(tastings.map((t) => t.body)) },
-      { attribute: 'Bitterness',value: avg(tastings.map((t) => t.bitterness)) },
-      { attribute: 'Balance',   value: avg(tastings.map((t) => t.balance ?? 5)) },
-      { attribute: 'Aftertaste',value: avg(tastings.map((t) => getAftertasteScore(t))) },
-    ];
-
-    // Score history (area chart)
-    const scoreHistory = [...tastings].reverse().map((t) => ({
-      date: format(parseISO(t.createdAt), 'MMM d'),
-      score: t.overallScore,
-    }));
-
-    // Top origins
-    const countryCounts: Record<string, number> = {};
-    tastings.forEach((t) => {
-      if (t.country) countryCounts[t.country] = (countryCounts[t.country] || 0) + 1;
-    });
-    const topCountries = Object.entries(countryCounts)
-      .sort((a, b) => b[1] - a[1]).slice(0, 6)
-      .map(([name, count]) => ({ name, count }));
-
-    // Brewing methods
-    const methodCounts: Record<string, number> = {};
-    tastings.forEach((t) => {
-      const m = getBrewMethod(t);
-      if (m) methodCounts[m] = (methodCounts[m] || 0) + 1;
-    });
-    const topMethods = Object.entries(methodCounts)
-      .sort((a, b) => b[1] - a[1]).slice(0, 6)
-      .map(([name, count]) => ({ name, count }));
-
-    // Processing methods
-    const processCounts: Record<string, number> = {};
-    tastings.forEach((t) => {
-      const p = getProcessing(t);
-      if (p) processCounts[p] = (processCounts[p] || 0) + 1;
-    });
-    const topProcesses = Object.entries(processCounts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, count]) => ({ name, count }));
-
-    // Flavor cloud
-    const flavorCounts: Record<string, number> = {};
-    tastings.forEach((t) => {
-      getAllDescriptors(t).forEach((d) => {
-        flavorCounts[d] = (flavorCounts[d] || 0) + 1;
-      });
-    });
-    const flavorCloud = Object.entries(flavorCounts)
-      .sort((a, b) => b[1] - a[1]).slice(0, 24);
-
-    return { radarData, scoreHistory, topCountries, topMethods, topProcesses, flavorCloud, total };
-  }, [tastings]);
-
-  if (!data) {
+  if (!tastings.length) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-full px-4 text-center pb-28">
-        <div className="text-5xl mb-4">📊</div>
-        <h1 className="font-serif text-2xl font-medium text-foreground mb-2">No data yet</h1>
-        <p className="text-muted-foreground text-[14px]">Log some tastings to see your insights.</p>
+      <div className="min-h-[100dvh] px-6 pb-28 iphone-safe-top flex flex-col justify-center text-center">
+        <div className="mx-auto w-20 h-20 rounded-[28px] bg-primary/10 border border-primary/15 flex items-center justify-center mb-6"><Dna className="text-primary" size={34} /></div>
+        <h1 className="font-serif text-3xl text-foreground">Coffee DNA</h1>
+        <p className="mt-3 text-sm text-muted-foreground leading-6">Добавь первые дегустации, и CoffeeMind начнёт находить закономерности в твоём вкусе.</p>
       </div>
     );
   }
 
-  const maxFlavor = data.flavorCloud[0]?.[1] || 1;
-
   return (
-    <div className="px-4 iphone-safe-top pb-28 min-h-full space-y-6">
-      <header>
-        <h1 className="font-serif text-[2rem] font-medium text-foreground">Insights</h1>
-        <p className="text-muted-foreground text-[13px] mt-0.5">Your palate in numbers.</p>
+    <div className="px-4 iphone-safe-top pb-28 min-h-full space-y-5">
+      <header className="flex items-end justify-between">
+        <div>
+          <p className="text-[10px] tracking-[0.24em] uppercase text-primary/70 font-semibold mb-1">Taste Intelligence</p>
+          <h1 className="font-serif text-[2.05rem] leading-none text-foreground">Coffee DNA</h1>
+        </div>
+        <div className="text-right"><p className="text-2xl font-semibold text-primary">{profile.sampleSize}</p><p className="text-[10px] text-muted-foreground uppercase tracking-wider">чашек</p></div>
       </header>
 
-      {/* Taste Profile Radar */}
-      <section className="bg-card/60 border border-white/[0.06] rounded-[24px] p-5">
-        <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50 mb-5">Taste Profile</p>
-        <div className="h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={data.radarData} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
-              <PolarGrid stroke="rgba(255,255,255,0.05)" />
-              <PolarAngleAxis dataKey="attribute" tick={{ fill: 'hsl(0 0% 50%)', fontSize: 10, fontFamily: 'Inter, sans-serif' }} />
-              <Radar dataKey="value" stroke="#D9A35F" fill="#D9A35F" fillOpacity={0.12} strokeWidth={2}
-                dot={{ r: 3, fill: '#D9A35F', strokeWidth: 0 }} />
-            </RadarChart>
-          </ResponsiveContainer>
+      <section className="relative overflow-hidden rounded-[28px] border border-primary/15 bg-gradient-to-br from-primary/[0.14] via-card/90 to-card p-5">
+        <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative flex items-start gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-black/25 border border-white/[0.07] flex items-center justify-center text-3xl">{profile.archetype.emoji}</div>
+          <div className="flex-1">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-white/40">Taste Identity</p>
+            <h2 className="font-serif text-2xl text-white mt-1">{profile.archetype.title}</h2>
+            <p className="text-[12px] leading-5 text-white/55 mt-2">{profile.archetype.subtitle}</p>
+          </div>
+          <div className="rounded-full px-2.5 py-1 bg-black/25 border border-white/[0.06] text-[10px] text-primary">{profile.archetype.confidence}%</div>
+        </div>
+        <div className="relative mt-5">
+          <div className="flex justify-between text-[10px] mb-2"><span className="text-white/45">{profile.maturityLabel}</span><span className="text-white/60">{profile.maturity}%</span></div>
+          <div className="h-2 rounded-full bg-black/30 overflow-hidden"><motion.div initial={{ width: 0 }} animate={{ width: `${profile.maturity}%` }} className="h-full rounded-full bg-primary" /></div>
+          <p className="text-[10px] text-white/35 mt-2">{Math.max(0, 20 - profile.sampleSize)} дегустаций до полного профиля</p>
         </div>
       </section>
 
-      {/* Score over time */}
-      {data.scoreHistory.length > 1 && (
-        <section className="bg-card/60 border border-white/[0.06] rounded-[24px] p-5">
-          <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50 mb-5">Score Over Time</p>
-          <div className="h-44 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.scoreHistory} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#D9A35F" stopOpacity={0.2} />
-                    <stop offset="100%" stopColor="#D9A35F" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                <XAxis dataKey="date" stroke="transparent" tick={{ fill: 'hsl(0 0% 45%)', fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis domain={[60, 100]} stroke="transparent" tick={{ fill: 'hsl(0 0% 45%)', fontSize: 10 }} tickLine={false} axisLine={false} />
-                <Tooltip {...tooltipStyle} />
-                <Area type="monotone" dataKey="score" stroke="#D9A35F" strokeWidth={2.5} fill="url(#scoreGrad)"
-                  dot={{ r: 3.5, fill: '#0B0B0B', stroke: '#D9A35F', strokeWidth: 2 }} activeDot={{ r: 5 }} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-      )}
+      <section className="grid grid-cols-2 gap-3">
+        <div className="rounded-[22px] border border-white/[0.06] bg-card/65 p-4"><Compass size={18} className="text-primary mb-3" /><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Разнообразие</p><p className="text-2xl font-semibold mt-1">{profile.diversityIndex}%</p></div>
+        <div className="rounded-[22px] border border-white/[0.06] bg-card/65 p-4"><Sparkles size={18} className="text-primary mb-3" /><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Средний балл</p><p className="text-2xl font-semibold mt-1">{profile.averages.overallScore.toFixed(1)}</p></div>
+      </section>
 
-      {/* Top Origins */}
-      {data.topCountries.length > 0 && (
-        <section className="bg-card/60 border border-white/[0.06] rounded-[24px] p-5">
-          <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50 mb-5">Favorite Origins</p>
-          <div className="h-44 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.topCountries} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" tick={{ fill: 'hsl(0 0% 60%)', fontSize: 11 }} tickLine={false} axisLine={false} width={75} />
-                <Tooltip {...tooltipStyle} />
-                <Bar dataKey="count" fill="#D9A35F" radius={[0, 6, 6, 0]} barSize={14} fillOpacity={0.85} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-      )}
+      <section className="rounded-[26px] border border-white/[0.06] bg-card/65 p-5">
+        <div className="flex items-center gap-2 mb-3"><Dna size={17} className="text-primary" /><p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Вкусовая карта</p></div>
+        <div className="h-56">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart data={radar} margin={{ top: 14, right: 24, bottom: 14, left: 24 }}>
+              <PolarGrid stroke="rgba(255,255,255,0.06)" />
+              <PolarAngleAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.48)', fontSize: 10 }} />
+              <Radar dataKey="value" stroke="#D9A35F" fill="#D9A35F" fillOpacity={0.16} strokeWidth={2} dot={{ r: 3, fill: '#D9A35F', strokeWidth: 0 }} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="space-y-3 mt-1">
+          <Meter label="Кислотность" value={profile.averages.acidity} />
+          <Meter label="Сладость" value={profile.averages.sweetness} />
+          <Meter label="Тело" value={profile.averages.body} />
+        </div>
+      </section>
 
-      {/* Brewing Methods */}
-      {data.topMethods.length > 1 && (
-        <section className="bg-card/60 border border-white/[0.06] rounded-[24px] p-5">
-          <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50 mb-5">Brewing Methods</p>
-          <div className="h-40 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.topMethods} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" tick={{ fill: 'hsl(0 0% 60%)', fontSize: 11 }} tickLine={false} axisLine={false} width={90} />
-                <Tooltip {...tooltipStyle} />
-                <Bar dataKey="count" fill="hsl(198 70% 55%)" radius={[0, 6, 6, 0]} barSize={14} fillOpacity={0.75} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-      )}
-
-      {/* Flavor Cloud */}
-      {data.flavorCloud.length > 0 && (
-        <section className="bg-card/60 border border-white/[0.06] rounded-[24px] p-5">
-          <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50 mb-4">Flavor Cloud</p>
+      {profile.topDescriptors.length > 0 && (
+        <section className="rounded-[26px] border border-white/[0.06] bg-card/65 p-5">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-4">Вкусовой почерк</p>
           <div className="flex flex-wrap gap-2">
-            {data.flavorCloud.map(([word, count]) => {
-              const { bg, text, ring } = flavorChipStyle(word);
-              const size = 0.75 + (count / maxFlavor) * 0.45;
-              return (
-                <span key={word} className={`${bg} ${text} ${ring} ring-1 px-3 py-1.5 rounded-full font-medium`}
-                  style={{ fontSize: `${size * 13}px`, opacity: 0.6 + (count / maxFlavor) * 0.4 }}>
-                  {word}
-                  {count > 1 && <span className="opacity-50 ml-1 text-[10px]">×{count}</span>}
-                </span>
-              );
+            {profile.topDescriptors.map((item) => {
+              const style = flavorChipStyle(item.name);
+              return <span key={item.name} className={`${style.bg} ${style.text} ${style.ring} ring-1 rounded-full px-3 py-1.5 text-[12px] font-medium`}>{item.name}<span className="opacity-45 ml-1">×{item.count}</span></span>;
             })}
           </div>
         </section>
       )}
 
-      {/* Processing breakdown */}
-      {data.topProcesses.length > 0 && (
-        <section className="bg-card/60 border border-white/[0.06] rounded-[24px] p-5">
-          <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50 mb-4">Processing Methods</p>
+      <section className="grid gap-3">
+        {profile.topCountries[0] && <div className="rounded-[22px] border border-white/[0.06] bg-card/65 p-4 flex items-center gap-4"><MapPin className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Любимое происхождение</p><p className="font-medium mt-1">{profile.topCountries[0].name} · {profile.topCountries[0].share}%</p></div></div>}
+        {profile.topProcesses[0] && <div className="rounded-[22px] border border-white/[0.06] bg-card/65 p-4 flex items-center gap-4"><Droplets className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Любимая обработка</p><p className="font-medium mt-1">{profile.topProcesses[0].name} · {profile.topProcesses[0].averageScore.toFixed(1)} балла</p></div></div>}
+        {profile.topMethods[0] && <div className="rounded-[22px] border border-white/[0.06] bg-card/65 p-4 flex items-center gap-4"><Coffee className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Основной способ</p><p className="font-medium mt-1">{profile.topMethods[0].name}</p></div></div>}
+      </section>
+
+      {insights.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-3"><Sparkles size={16} className="text-primary" /><p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">CoffeeMind Insights</p></div>
           <div className="space-y-3">
-            {data.topProcesses.map(({ name, count }) => {
-              const pct = (count / data.total) * 100;
-              return (
-                <div key={name}>
-                  <div className="flex justify-between text-[12px] mb-1.5">
-                    <span className="text-foreground font-medium">{name}</span>
-                    <span className="text-muted-foreground">{count}×</span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-primary/60 to-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
+            {insights.map((insight) => <article key={insight.title} className={`rounded-[22px] border p-4 ${TONE_CLASS[insight.tone]}`}><h3 className="text-[13px] font-semibold">{insight.title}</h3><p className="text-[12px] leading-5 text-white/55 mt-1.5">{insight.body}</p></article>)}
           </div>
         </section>
       )}

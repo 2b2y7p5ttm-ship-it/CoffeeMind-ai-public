@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 
 const NAV_ITEMS = [
   { href: '/', icon: Home, label: 'Журнал' },
-  { href: '/stats', icon: BarChart2, label: 'Аналитика' },
+  { href: '/stats', icon: BarChart2, label: 'DNA' },
   null, // FAB placeholder
   { href: '/books', icon: BookOpen, label: 'Книги' },
   { href: '/profile', icon: User, label: 'Профиль' },
