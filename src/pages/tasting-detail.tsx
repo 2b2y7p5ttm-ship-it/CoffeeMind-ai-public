@@ -186,6 +186,11 @@ export default function TastingDetail() {
             <InfoRow label="Country"   value={tasting.country} />
             <InfoRow label="Region"    value={tasting.region} />
             <InfoRow label="Farm"      value={tasting.farm} />
+            <InfoRow label="Producer" value={tasting.producer} />
+            <InfoRow label="Washing station" value={tasting.washingStation} />
+            <InfoRow label="Elevation" value={tasting.elevationMeters ? `${tasting.elevationMeters} m` : ''} />
+            <InfoRow label="Harvest" value={tasting.harvestYear} />
+            <InfoRow label="Lot" value={tasting.lotNumber} />
             <InfoRow label="Variety"   value={tasting.variety} />
             <InfoRow label="Processing" value={processing} />
             <InfoRow label="Roast Date" value={tasting.roastDate} />
@@ -223,6 +228,13 @@ export default function TastingDetail() {
             {(!tasting.doseGrams && tasting.dose) && (
               <InfoRow label="Dose" value={`${tasting.dose}g`} />
             )}
+            <div className="bg-card/60 border border-white/[0.06] rounded-2xl px-4">
+              <InfoRow label="Grinder" value={tasting.grinderModel || tasting.grinder} />
+              <InfoRow label="Grind setting" value={tasting.grindSetting} />
+              <InfoRow label="Water" value={tasting.waterName} />
+              <InfoRow label="Water TDS" value={tasting.waterTdsPpm ? `${tasting.waterTdsPpm} ppm` : ''} />
+              <InfoRow label="Bloom" value={tasting.bloomSeconds ? `${tasting.bloomSeconds} sec` : ''} />
+            </div>
           </div>
         </section>
 
@@ -257,6 +269,8 @@ export default function TastingDetail() {
         <section>
           <SectionHeader icon={Zap} label="Attribute Scores" />
           <div className="bg-card/60 border border-white/[0.06] rounded-2xl p-5 space-y-4">
+            <ScoreBar label="Aroma"      value={tasting.aromaScore ?? 5} />
+            <ScoreBar label="Flavor"     value={tasting.flavorScore ?? 5} />
             <ScoreBar label="Acidity"    value={tasting.acidity} />
             <ScoreBar label="Sweetness"  value={tasting.sweetness} />
             <ScoreBar label="Body"       value={tasting.body} />

@@ -14,6 +14,11 @@ export interface Tasting {
   processing: string;
   roaster: string;
   roastDate: string;
+  producer?: string;
+  washingStation?: string;
+  elevationMeters?: string;
+  harvestYear?: string;
+  lotNumber?: string;
 
   // ── Brewing ───────────────────────────────────────────────────────────────
   brewMethod: string;
@@ -21,6 +26,11 @@ export interface Tasting {
   beverageWeightGrams: string;
   brewTimeSeconds: string;
   waterTemperatureCelsius: string;
+  grinderModel?: string;
+  grindSetting?: string;
+  waterName?: string;
+  waterTdsPpm?: string;
+  bloomSeconds?: string;
 
   // ── Sensory text ──────────────────────────────────────────────────────────
   dryAroma: string;
@@ -28,6 +38,8 @@ export interface Tasting {
   firstImpression: string;
 
   // ── Scores 1–10 ───────────────────────────────────────────────────────────
+  aromaScore?: number;
+  flavorScore?: number;
   acidity: number;
   sweetness: number;
   bitterness: number;

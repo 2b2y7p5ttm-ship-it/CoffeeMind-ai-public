@@ -17,11 +17,14 @@ interface WizardData {
   // Step 1 — Coffee
   coffeeName: string; roaster: string; country: string; region: string;
   farm: string; variety: string; processing: string; roastDate: string;
+  producer: string; washingStation: string; elevationMeters: string; harvestYear: string; lotNumber: string;
   // Step 2 — Brewing
   brewMethod: string; doseGrams: string; beverageWeightGrams: string;
   brewTimeSeconds: string; waterTemperatureCelsius: string;
+  grinderModel: string; grindSetting: string; waterName: string; waterTdsPpm: string; bloomSeconds: string;
   // Step 3 — Sensory
   dryAroma: string; wetAroma: string; firstImpression: string;
+  aromaScore: number; flavorScore: number;
   acidity: number; sweetness: number; bitterness: number;
   body: number; balance: number; cleanCup: number; aftertaste: number;
   overallScore: number;
@@ -36,9 +39,12 @@ interface WizardData {
 const DEFAULT: WizardData = {
   coffeeName: '', roaster: '', country: '', region: '',
   farm: '', variety: '', processing: 'Washed', roastDate: '',
+  producer: '', washingStation: '', elevationMeters: '', harvestYear: '', lotNumber: '',
   brewMethod: 'V60', doseGrams: '', beverageWeightGrams: '',
   brewTimeSeconds: '', waterTemperatureCelsius: '',
+  grinderModel: '', grindSetting: '', waterName: '', waterTdsPpm: '', bloomSeconds: '',
   dryAroma: '', wetAroma: '', firstImpression: '',
+  aromaScore: 7, flavorScore: 7,
   acidity: 6, sweetness: 7, bitterness: 4, body: 6,
   balance: 7, cleanCup: 7, aftertaste: 7, overallScore: 85,
   topThreeDescriptors: [], additionalDescriptors: [],
@@ -55,14 +61,26 @@ function tastingToWizardData(tasting: Tasting): WizardData {
     variety: tasting.variety || '',
     processing: tasting.processing || tasting.process || 'Washed',
     roastDate: tasting.roastDate || '',
+    producer: tasting.producer || '',
+    washingStation: tasting.washingStation || '',
+    elevationMeters: tasting.elevationMeters || '',
+    harvestYear: tasting.harvestYear || '',
+    lotNumber: tasting.lotNumber || '',
     brewMethod: tasting.brewMethod || tasting.brewingMethod || 'V60',
     doseGrams: tasting.doseGrams || tasting.dose || '',
     beverageWeightGrams: tasting.beverageWeightGrams || tasting.yield || '',
     brewTimeSeconds: tasting.brewTimeSeconds || tasting.time || '',
     waterTemperatureCelsius: tasting.waterTemperatureCelsius || tasting.temperature || '',
+    grinderModel: tasting.grinderModel || tasting.grinder || '',
+    grindSetting: tasting.grindSetting || '',
+    waterName: tasting.waterName || '',
+    waterTdsPpm: tasting.waterTdsPpm || '',
+    bloomSeconds: tasting.bloomSeconds || '',
     dryAroma: tasting.dryAroma || tasting.aroma || '',
     wetAroma: tasting.wetAroma || '',
     firstImpression: tasting.firstImpression || tasting.flavor || '',
+    aromaScore: Number(tasting.aromaScore) || 7,
+    flavorScore: Number(tasting.flavorScore) || 7,
     acidity: Number(tasting.acidity) || 6,
     sweetness: Number(tasting.sweetness) || 7,
     bitterness: Number(tasting.bitterness) || 4,
@@ -306,6 +324,34 @@ function Step1({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
         </Field>
       </div>
 
+      <div className="coffee-panel rounded-[22px] p-4 space-y-4">
+        <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Расширенный паспорт зерна</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Производитель">
+            <Input value={d.producer} onChange={(e) => u({ producer: e.target.value })}
+              placeholder="Smallholders" className={inputCls} />
+          </Field>
+          <Field label="Станция обработки">
+            <Input value={d.washingStation} onChange={(e) => u({ washingStation: e.target.value })}
+              placeholder="Kochere" className={inputCls} />
+          </Field>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <Field label="Высота, м">
+            <Input value={d.elevationMeters} onChange={(e) => u({ elevationMeters: e.target.value })}
+              placeholder="1950" inputMode="numeric" className={inputCls} />
+          </Field>
+          <Field label="Урожай">
+            <Input value={d.harvestYear} onChange={(e) => u({ harvestYear: e.target.value })}
+              placeholder="2025" inputMode="numeric" className={inputCls} />
+          </Field>
+          <Field label="Лот">
+            <Input value={d.lotNumber} onChange={(e) => u({ lotNumber: e.target.value })}
+              placeholder="LOT-24" className={inputCls} />
+          </Field>
+        </div>
+      </div>
+
       <Field label="Обработка">
         <PillRow options={PROCESS_OPTIONS} value={d.processing} onChange={(v) => u({ processing: v })} />
       </Field>
@@ -357,6 +403,34 @@ function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
         </Field>
       </div>
 
+      <div className="coffee-panel rounded-[22px] p-4 space-y-4">
+        <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Оборудование и вода</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Кофемолка">
+            <Input value={d.grinderModel} onChange={(e) => u({ grinderModel: e.target.value })}
+              placeholder="Comandante C40" className={inputCls} />
+          </Field>
+          <Field label="Настройка помола">
+            <Input value={d.grindSetting} onChange={(e) => u({ grindSetting: e.target.value })}
+              placeholder="24 clicks" className={inputCls} />
+          </Field>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <Field label="Вода">
+            <Input value={d.waterName} onChange={(e) => u({ waterName: e.target.value })}
+              placeholder="TWW" className={inputCls} />
+          </Field>
+          <Field label="TDS, ppm">
+            <Input value={d.waterTdsPpm} onChange={(e) => u({ waterTdsPpm: e.target.value })}
+              placeholder="90" inputMode="numeric" className={inputCls} />
+          </Field>
+          <Field label="Блуминг, сек">
+            <Input value={d.bloomSeconds} onChange={(e) => u({ bloomSeconds: e.target.value })}
+              placeholder="45" inputMode="numeric" className={inputCls} />
+          </Field>
+        </div>
+      </div>
+
       <AnimatePresence>
         {ratio && (
           <motion.div
@@ -399,6 +473,8 @@ function Step3({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
       </div>
 
       <div className="coffee-panel rounded-[24px] p-5 space-y-7">
+        <ScoreSlider label="Аромат" value={d.aromaScore} onChange={(v) => u({ aromaScore: v })} />
+        <ScoreSlider label="Вкус" value={d.flavorScore} onChange={(v) => u({ flavorScore: v })} />
         <ScoreSlider label="Кислотность" value={d.acidity} onChange={(v) => u({ acidity: v })} />
         <ScoreSlider label="Сладость" value={d.sweetness} onChange={(v) => u({ sweetness: v })} />
         <ScoreSlider label="Тело" value={d.body} onChange={(v) => u({ body: v })} />
@@ -408,7 +484,24 @@ function Step3({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
         <ScoreSlider label="Послевкусие" value={d.aftertaste} onChange={(v) => u({ aftertaste: v })} />
       </div>
 
-      <div className="bg-primary/[0.07] border border-primary/20 rounded-[24px] p-5">
+      <div className="bg-primary/[0.07] border border-primary/20 rounded-[24px] p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Итоговый балл</p>
+            <p className="text-[12px] text-muted-foreground mt-1">Можно выставить вручную или рассчитать из сенсорного профиля.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const values = [d.aromaScore, d.flavorScore, d.acidity, d.sweetness, d.body, d.balance, d.cleanCup, d.aftertaste];
+              const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+              u({ overallScore: Math.round(50 + average * 5) });
+            }}
+            className="px-3 py-2 rounded-full border border-primary/25 bg-primary/10 text-primary text-[11px] font-semibold whitespace-nowrap"
+          >
+            Рассчитать
+          </button>
+        </div>
         <ScoreSlider label="Общая оценка" value={d.overallScore}
           onChange={(v) => u({ overallScore: v })} min={50} max={100} large />
       </div>
@@ -674,6 +767,7 @@ function Step6({ d, onSave, isSaving, saveError, saveLabel = 'Сохранить
 
           <div className="grid grid-cols-2 gap-x-5 gap-y-2.5">
             {([
+              { label: 'Аромат', v: d.aromaScore }, { label: 'Вкус', v: d.flavorScore },
               { label: 'Кислотность', v: d.acidity }, { label: 'Сладость', v: d.sweetness },
               { label: 'Тело', v: d.body }, { label: 'Горечь', v: d.bitterness },
               { label: 'Баланс', v: d.balance }, { label: 'Послевкусие', v: d.aftertaste },
@@ -922,14 +1016,26 @@ export default function AddTasting() {
         variety: data.variety,
         processing: data.processing,
         roastDate: data.roastDate,
+        producer: data.producer,
+        washingStation: data.washingStation,
+        elevationMeters: data.elevationMeters,
+        harvestYear: data.harvestYear,
+        lotNumber: data.lotNumber,
         brewMethod: data.brewMethod,
         doseGrams: data.doseGrams,
         beverageWeightGrams: data.beverageWeightGrams,
         brewTimeSeconds: data.brewTimeSeconds,
         waterTemperatureCelsius: data.waterTemperatureCelsius,
+        grinderModel: data.grinderModel,
+        grindSetting: data.grindSetting,
+        waterName: data.waterName,
+        waterTdsPpm: data.waterTdsPpm,
+        bloomSeconds: data.bloomSeconds,
         dryAroma: data.dryAroma,
         wetAroma: data.wetAroma,
         firstImpression: data.firstImpression,
+        aromaScore: data.aromaScore,
+        flavorScore: data.flavorScore,
         acidity: data.acidity,
         sweetness: data.sweetness,
         bitterness: data.bitterness,
