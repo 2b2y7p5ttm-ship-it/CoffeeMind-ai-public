@@ -17,6 +17,7 @@ import Welcome from '@/pages/welcome';
 import ShareApp from '@/pages/share';
 import Backup from '@/pages/backup';
 import Account from '@/pages/account';
+import Admin from '@/pages/admin';
 import NotFound from '@/pages/not-found';
 import { BottomNav } from '@/components/BottomNav';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -52,6 +53,7 @@ function App() {
                 <Route path="/share" component={ShareApp} />
                 <Route path="/backup" component={Backup} />
                 <Route path="/account" component={Account} />
+                <Route path="/admin" component={Admin} />
                 <Route component={NotFound} />
               </Switch>
               <BottomNav />

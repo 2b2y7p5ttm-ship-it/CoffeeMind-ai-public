@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Moon, Download, Trash2, Info, User, Smartphone, ShieldCheck, Share2, Sparkles, Cloud } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Moon, Download, Trash2, Info, User, Smartphone, ShieldCheck, Share2, Sparkles, Cloud, BarChart3 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useProfile } from '@/hooks/useProfile';
 import { useTastings } from '@/hooks/useTastings';
 import { useBooks } from '@/hooks/useBooks';
 import { Input } from '@/components/ui/input';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
 
 // ─── Settings Row ─────────────────────────────────────────────────────────────
 
@@ -65,6 +66,7 @@ export default function Settings() {
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(profile.name);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const { isAdmin } = useAdminAccess();
 
   const handleSaveName = () => {
     if (name.trim()) setProfile({ ...profile, name: name.trim() });
@@ -155,6 +157,17 @@ export default function Settings() {
             onClick={() => setLocation('/account')}
           />
         </Section>
+
+        {isAdmin && (
+          <Section title="Owner">
+            <Row
+              icon={BarChart3}
+              label="Панель владельца"
+              sublabel="Пользователи, регистрации и активность CoffeeMind"
+              onClick={() => setLocation('/admin')}
+            />
+          </Section>
+        )}
 
         {/* Appearance */}
         <Section title="Appearance">
