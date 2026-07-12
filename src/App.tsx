@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { Toaster } from '@/components/ui/toaster';
@@ -22,22 +21,22 @@ import NotFound from '@/pages/not-found';
 import { BottomNav } from '@/components/BottomNav';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CloudSyncBridge } from '@/components/CloudSyncBridge';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { PageTransition } from '@/components/PageTransition';
 
 const queryClient = new QueryClient();
 
 function App() {
-  useEffect(() => {
-    document.documentElement.classList.add('dark');
-  }, []);
-
   return (
+    <ThemeProvider>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
       <TooltipProvider>
         <CloudSyncBridge />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-          <div className="min-h-[100dvh] bg-black text-foreground flex justify-center">
+          <div className="min-h-[100dvh] bg-[hsl(var(--app-canvas))] text-foreground flex justify-center transition-colors duration-500">
             <div className="iphone-shell w-full max-w-[430px] relative min-h-[100dvh] bg-background sm:border-x sm:border-white/[0.04] sm:shadow-[0_0_80px_rgba(0,0,0,0.8)]">
+              <PageTransition>
               <Switch>
                 <Route path="/" component={Home} />
                 <Route path="/add" component={AddTasting} />
@@ -56,6 +55,7 @@ function App() {
                 <Route path="/admin" component={Admin} />
                 <Route component={NotFound} />
               </Switch>
+              </PageTransition>
               <BottomNav />
             </div>
           </div>
@@ -64,6 +64,7 @@ function App() {
       </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

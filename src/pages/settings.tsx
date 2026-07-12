@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Moon, Download, Trash2, Info, User, Smartphone, ShieldCheck, Share2, Sparkles, Cloud, BarChart3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Moon, Sun, Monitor, Download, Trash2, Info, User, Smartphone, ShieldCheck, Share2, Sparkles, Cloud, BarChart3 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useProfile } from '@/hooks/useProfile';
 import { useTastings } from '@/hooks/useTastings';
 import { useBooks } from '@/hooks/useBooks';
 import { Input } from '@/components/ui/input';
 import { useAdminAccess } from '@/hooks/useAdminAccess';
+import { useTheme, type ThemeMode } from '@/contexts/ThemeContext';
 
 // ─── Settings Row ─────────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ export default function Settings() {
   const [name, setName] = useState(profile.name);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const { isAdmin } = useAdminAccess();
+  const { mode, setMode } = useTheme();
 
   const handleSaveName = () => {
     if (name.trim()) setProfile({ ...profile, name: name.trim() });
@@ -170,17 +172,29 @@ export default function Settings() {
         )}
 
         {/* Appearance */}
-        <Section title="Appearance">
-          <Row
-            icon={Moon}
-            label="Dark Mode"
-            sublabel="Always on — this app is night-optimized"
-            right={
-              <div className="w-10 h-6 bg-primary rounded-full flex items-center justify-end pr-1">
-                <div className="w-4 h-4 bg-primary-foreground rounded-full shadow-sm" />
-              </div>
-            }
-          />
+        <Section title="Оформление">
+          <div className="p-3">
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                ['light', Sun, 'Светлая'],
+                ['dark', Moon, 'Тёмная'],
+                ['system', Monitor, 'Система'],
+              ] as [ThemeMode, React.ElementType, string][]).map(([value, Icon, label]) => {
+                const active = mode === value;
+                return (
+                  <motion.button
+                    key={value}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setMode(value)}
+                    className={`rounded-2xl border px-2 py-3 transition-all ${active ? 'border-primary bg-primary/12 text-primary shadow-[0_10px_30px_hsl(var(--primary)/0.12)]' : 'border-border bg-background/55 text-muted-foreground'}`}
+                  >
+                    <Icon size={18} className="mx-auto" />
+                    <span className="mt-2 block text-[10px] font-semibold">{label}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
         </Section>
 
 

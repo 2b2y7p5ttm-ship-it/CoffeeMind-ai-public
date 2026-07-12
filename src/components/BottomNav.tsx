@@ -1,69 +1,42 @@
 import { Link, useLocation } from 'wouter';
-import { Home, BarChart2, User, Plus, BookOpen } from 'lucide-react';
+import { Home, Dna, User, Plus, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const NAV_ITEMS = [
-  { href: '/', icon: Home, label: 'Журнал' },
-  { href: '/stats', icon: BarChart2, label: 'DNA' },
-  null, // FAB placeholder
+  { href: '/', icon: Home, label: 'Главная' },
+  { href: '/stats', icon: Dna, label: 'DNA' },
+  null,
   { href: '/books', icon: BookOpen, label: 'Книги' },
   { href: '/profile', icon: User, label: 'Профиль' },
 ];
 
 export function BottomNav() {
   const [location] = useLocation();
-
-  if (location === '/add' || location.startsWith('/tasting/') || location.startsWith('/coach/') || location === '/settings' || location === '/install' || location === '/welcome' || location === '/share' || location === '/backup') return null;
+  if (location === '/add' || location.startsWith('/tasting/') || location.startsWith('/coach/') || ['/settings','/install','/welcome','/share','/backup','/account','/admin'].includes(location)) return null;
 
   return (
     <div className="fixed inset-x-0 z-50 flex justify-center pointer-events-none iphone-bottom-nav">
       <div className="w-full max-w-[430px] px-3 pointer-events-auto">
-        {/* Glass bar */}
-        <div className="w-full rounded-[26px] bg-black/86 backdrop-blur-2xl border border-white/[0.08] shadow-[0_-18px_50px_rgba(0,0,0,0.45)] iphone-nav-panel">
-          <div className="flex items-center justify-around px-2 pt-2 pb-2 relative h-[60px]">
-            {NAV_ITEMS.map((item, i) => {
-              if (!item) {
-                // FAB
-                return (
-                  <div key="fab" className="relative -top-5">
-                    <Link href="/add" data-testid="nav-add">
-                      <motion.div
-                        whileTap={{ scale: 0.92 }}
-                        className="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-[0_0_24px_rgba(217,163,95,0.38),0_4px_16px_rgba(0,0,0,0.55)] ring-4 ring-background"
-                      >
-                        <Plus size={26} strokeWidth={2.5} className="text-primary-foreground" />
-                      </motion.div>
-                    </Link>
-                  </div>
-                );
-              }
-
+        <div className="cm-bottom-nav iphone-nav-panel">
+          <div className="grid grid-cols-5 items-center h-[64px] px-2">
+            {NAV_ITEMS.map((item, index) => {
+              if (!item) return (
+                <div key="add" className="flex justify-center">
+                  <Link href="/add">
+                    <motion.div whileTap={{ scale: 0.88 }} whileHover={{ y: -2 }} className="cm-nav-fab">
+                      <Plus size={25} strokeWidth={2.3} />
+                    </motion.div>
+                  </Link>
+                </div>
+              );
+              const active = item.href === '/' ? location === '/' : location.startsWith(item.href);
               const Icon = item.icon;
-              const isActive = item.href === '/' ? location === '/' : location.startsWith(item.href);
-
               return (
-                <Link key={item.href} href={item.href} data-testid={`nav-${item.label.toLowerCase()}`}>
-                  <motion.div
-                    whileTap={{ scale: 0.88 }}
-                    className="flex flex-col items-center gap-1 px-2.5 py-1"
-                  >
-                    <Icon
-                      size={22}
-                      strokeWidth={isActive ? 2.5 : 1.8}
-                      className={`transition-colors duration-200 ${isActive ? 'text-primary' : 'text-white/35'}`}
-                    />
-                    <span
-                      className={`text-[9px] font-semibold tracking-wider uppercase transition-colors duration-200 ${isActive ? 'text-primary' : 'text-white/25'}`}
-                    >
-                      {item.label}
-                    </span>
-                    {isActive && (
-                      <motion.div
-                        layoutId="nav-indicator"
-                        className="absolute top-0 w-8 h-0.5 bg-primary rounded-full"
-                        transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-                      />
-                    )}
+                <Link key={item.href} href={item.href}>
+                  <motion.div whileTap={{ scale: 0.86 }} className="relative flex flex-col items-center justify-center gap-1 py-2">
+                    {active && <motion.div layoutId="nav-glow" className="absolute inset-x-2 inset-y-0 rounded-2xl bg-primary/10" transition={{ type:'spring', stiffness:420, damping:34 }} />}
+                    <Icon size={21} strokeWidth={active ? 2.4 : 1.7} className={`relative z-10 transition-colors ${active ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span className={`relative z-10 text-[9px] font-semibold ${active ? 'text-primary' : 'text-muted-foreground'}`}>{item.label}</span>
                   </motion.div>
                 </Link>
               );
