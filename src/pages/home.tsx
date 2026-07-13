@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Coffee, Filter, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { Cloud, Coffee, Filter, LogIn, Search, SlidersHorizontal, Sparkles, UserPlus, X } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { format, isToday, isYesterday, isThisWeek, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -8,6 +8,7 @@ import { useTastings, Tasting } from '@/hooks/useTastings';
 import { JournalTastingCard } from '@/components/journal/JournalTastingCard';
 import { JournalPreview } from '@/components/journal/JournalPreview';
 import { tastingSearchText } from '@/lib/journal';
+import { useAuth } from '@/contexts/AuthContext';
 
 function groupTitle(date: Date): string {
   if (isToday(date)) return 'Сегодня';
@@ -19,6 +20,7 @@ function groupTitle(date: Date): string {
 export default function Home() {
   const [, navigate] = useLocation();
   const { tastings, updateTasting, deleteTasting } = useTastings();
+  const { user, loading: authLoading } = useAuth();
   const [query, setQuery] = useState('');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [preview, setPreview] = useState<Tasting | null>(null);
@@ -63,6 +65,59 @@ export default function Home() {
       </header>
 
       <section className="px-4 mt-5">
+        {!authLoading && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 rounded-[24px] border border-primary/20 bg-card/75 p-4 shadow-sm backdrop-blur-xl"
+          >
+            {user?.email ? (
+              <button
+                type="button"
+                onClick={() => navigate('/account')}
+                className="flex w-full items-center gap-3 text-left"
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+                  <Cloud size={20} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[11px] uppercase tracking-[0.16em] text-primary">Аккаунт подключён</span>
+                  <span className="mt-1 block truncate text-sm font-semibold text-foreground">{user.email}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">Управление аккаунтом и синхронизацией</span>
+                </span>
+                <span className="text-xl text-muted-foreground">›</span>
+              </button>
+            ) : (
+              <>
+                <div className="mb-3">
+                  <p className="text-sm font-semibold text-foreground">Сохрани записи на всех устройствах</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Создай аккаунт или войди, чтобы включить облачную синхронизацию.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    type="button"
+                    onClick={() => navigate('/account?mode=signup')}
+                    className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-3 text-sm font-bold text-primary-foreground"
+                  >
+                    <UserPlus size={17} />
+                    Регистрация
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    type="button"
+                    onClick={() => navigate('/account?mode=login')}
+                    className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background/70 px-3 text-sm font-semibold text-foreground"
+                  >
+                    <LogIn size={17} />
+                    Войти
+                  </motion.button>
+                </div>
+              </>
+            )}
+          </motion.div>
+        )}
+
         <div className="cm-journal-search">
           <Search size={18} />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Страна, обработка, вкус, метод…" />
