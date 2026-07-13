@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { useRef, useState } from 'react';
+import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { BookOpen, ChevronRight, Heart, Pencil, Share2, Trash2 } from 'lucide-react';
 import { Tasting } from '@/hooks/useTastings';
 import { countryToFlag } from '@/lib/coffeeUtils';
@@ -22,6 +22,7 @@ export function JournalTastingCard({ tasting, onOpen, onEdit, onDelete, onFavori
   const holdTimer = useRef<number | null>(null);
   const moved = useRef(false);
   const suppressClick = useRef(false);
+  const [openSide, setOpenSide] = useState<'left' | 'right' | null>(null);
   const descriptors = getTastingDescriptors(tasting).slice(0, 3);
   const tone = getTasteTone(tasting);
   const processing = tasting.processing || tasting.process;
@@ -33,30 +34,65 @@ export function JournalTastingCard({ tasting, onOpen, onEdit, onDelete, onFavori
     holdTimer.current = null;
   };
 
+  const closeActions = () => {
+    setOpenSide(null);
+    void animate(x, 0, {
+      type: 'spring',
+      stiffness: 620,
+      damping: 42,
+      mass: 0.55,
+    });
+  };
+
+  const runAction = (action: () => void) => {
+    closeActions();
+    window.setTimeout(action, 140);
+  };
+
   return (
     <div className={`cm-journal-swipe cm-tone-${tone}`}>
       <motion.div style={{ opacity: leftOpacity }} className="cm-swipe-actions cm-swipe-actions-left">
-        <button onClick={onFavorite} aria-label="Избранное"><Heart size={18} fill={tasting.favorite ? 'currentColor' : 'none'} /></button>
-        <button onClick={onShare} aria-label="Поделиться"><Share2 size={18} /></button>
+        <button onClick={() => runAction(onFavorite)} aria-label="Избранное"><Heart size={18} fill={tasting.favorite ? 'currentColor' : 'none'} /></button>
+        <button onClick={() => runAction(onShare)} aria-label="Поделиться"><Share2 size={18} /></button>
       </motion.div>
       <motion.div style={{ opacity: rightOpacity }} className="cm-swipe-actions cm-swipe-actions-right">
-        <button onClick={onEdit} aria-label="Редактировать"><Pencil size={18} /></button>
-        <button onClick={onDelete} className="cm-delete-action" aria-label="Удалить"><Trash2 size={18} /></button>
+        <button onClick={() => runAction(onEdit)} aria-label="Редактировать"><Pencil size={18} /></button>
+        <button onClick={() => runAction(onDelete)} className="cm-delete-action" aria-label="Удалить"><Trash2 size={18} /></button>
       </motion.div>
 
       <motion.article
         drag="x"
-        dragConstraints={{ left: -96, right: 96 }}
-        dragElastic={0.12}
+        dragConstraints={{ left: -104, right: 104 }}
+        dragElastic={0.06}
+        dragMomentum={false}
         style={{ x }}
         onDragStart={() => { moved.current = true; suppressClick.current = true; clearHold(); }}
         onDragEnd={(_, info) => {
           clearHold();
-          if (info.offset.x > 72) onFavorite();
-          if (info.offset.x < -72) onEdit();
+
+          // Свайп только открывает панель действий.
+          // Никакое действие не запускается автоматически.
+          let destination = 0;
+          let side: 'left' | 'right' | null = null;
+
+          if (info.offset.x > 52 || info.velocity.x > 420) {
+            destination = 92;
+            side = 'left';
+          } else if (info.offset.x < -52 || info.velocity.x < -420) {
+            destination = -92;
+            side = 'right';
+          }
+
+          setOpenSide(side);
+          void animate(x, destination, {
+            type: 'spring',
+            stiffness: 560,
+            damping: 40,
+            mass: 0.58,
+          });
+
           moved.current = false;
-          x.set(0);
-          window.setTimeout(() => { suppressClick.current = false; }, 120);
+          window.setTimeout(() => { suppressClick.current = false; }, 180);
         }}
         onPointerDown={() => {
           moved.current = false;
@@ -65,7 +101,14 @@ export function JournalTastingCard({ tasting, onOpen, onEdit, onDelete, onFavori
         onPointerUp={clearHold}
         onPointerCancel={clearHold}
         onPointerLeave={clearHold}
-        onClick={() => { if (!moved.current && !suppressClick.current) onOpen(); }}
+        onClick={() => {
+          if (moved.current || suppressClick.current) return;
+          if (openSide) {
+            closeActions();
+            return;
+          }
+          onOpen();
+        }}
         whileTap={{ scale: 0.988 }}
         className="cm-journal-card"
       >
