@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Cloud, Coffee, Filter, LogIn, Search, SlidersHorizontal, Sparkles, UserPlus, X } from 'lucide-react';
+import { Coffee, Filter, LogIn, Search, SlidersHorizontal, Sparkles, UserPlus, X } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { format, isToday, isYesterday, isThisWeek, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -9,6 +9,35 @@ import { JournalTastingCard } from '@/components/journal/JournalTastingCard';
 import { JournalPreview } from '@/components/journal/JournalPreview';
 import { tastingSearchText } from '@/lib/journal';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProfile } from '@/hooks/useProfile';
+
+
+function toGenitiveName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return '';
+
+  const lower = trimmed.toLocaleLowerCase('ru-RU');
+
+  const irregular: Record<string, string> = {
+    'павел': 'Павла',
+    'лев': 'Льва',
+    'пётр': 'Петра',
+    'петр': 'Петра',
+    'илля': 'Ильи',
+  };
+  if (irregular[lower]) return irregular[lower];
+
+  const last = trimmed.slice(-1);
+  const stem = trimmed.slice(0, -1);
+
+  if (last === 'а' || last === 'А') return `${stem}ы`;
+  if (last === 'я' || last === 'Я') return `${stem}и`;
+  if (last === 'й' || last === 'Й') return `${stem}я`;
+  if (last === 'ь' || last === 'Ь') return `${stem}я`;
+  if (/[бвгджзклмнпрстфхцчшщБВГДЖЗКЛМНПРСТФХЦЧШЩ]$/.test(trimmed)) return `${trimmed}а`;
+
+  return trimmed;
+}
 
 function groupTitle(date: Date): string {
   if (isToday(date)) return 'Сегодня';
@@ -21,6 +50,15 @@ export default function Home() {
   const [, navigate] = useLocation();
   const { tastings, updateTasting, deleteTasting } = useTastings();
   const { user, loading: authLoading } = useAuth();
+  const { profile } = useProfile();
+  const nickname = useMemo(() => {
+    if (!user) return '';
+    const metadataName = typeof user.user_metadata?.name === 'string' ? user.user_metadata.name.trim() : '';
+    const profileName = profile.name?.trim() || '';
+    const emailName = user.email?.split('@')[0] || 'пользователя';
+    return metadataName || (profileName && profileName !== 'Роман' ? profileName : '') || emailName;
+  }, [profile.name, user]);
+  const journalOwner = useMemo(() => toGenitiveName(nickname), [nickname]);
   const [query, setQuery] = useState('');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [preview, setPreview] = useState<Tasting | null>(null);
@@ -56,7 +94,7 @@ export default function Home() {
       <header className="cm-journal-header px-4 pt-3">
         <div>
           <p className="cm-journal-eyebrow">Мой кофейный путь</p>
-          <h1>Журнал</h1>
+          <h1>{user ? `Журнал ${journalOwner}` : 'Журнал'}</h1>
           <p>{tastings.length ? `${tastings.length} ${tastings.length === 1 ? 'глава' : 'глав'} о вкусе` : 'Первая глава ещё впереди'}</p>
         </div>
         <motion.button whileTap={{ scale: .88 }} className={`cm-journal-filter ${onlyFavorites ? 'is-active' : ''}`} onClick={() => setOnlyFavorites((value) => !value)} aria-label="Только избранное">
@@ -65,30 +103,13 @@ export default function Home() {
       </header>
 
       <section className="px-4 mt-5">
-        {!authLoading && (
+        {!authLoading && !user && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-4 rounded-[24px] border border-primary/20 bg-card/75 p-4 shadow-sm backdrop-blur-xl"
           >
-            {user?.email ? (
-              <button
-                type="button"
-                onClick={() => navigate('/account')}
-                className="flex w-full items-center gap-3 text-left"
-              >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
-                  <Cloud size={20} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[11px] uppercase tracking-[0.16em] text-primary">Аккаунт подключён</span>
-                  <span className="mt-1 block truncate text-sm font-semibold text-foreground">{user.email}</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">Управление аккаунтом и синхронизацией</span>
-                </span>
-                <span className="text-xl text-muted-foreground">›</span>
-              </button>
-            ) : (
-              <>
+            <>
                 <div className="mb-3">
                   <p className="text-sm font-semibold text-foreground">Сохрани записи на всех устройствах</p>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Создай аккаунт или войди, чтобы включить облачную синхронизацию.</p>
@@ -113,8 +134,7 @@ export default function Home() {
                     Войти
                   </motion.button>
                 </div>
-              </>
-            )}
+            </>
           </motion.div>
         )}
 
