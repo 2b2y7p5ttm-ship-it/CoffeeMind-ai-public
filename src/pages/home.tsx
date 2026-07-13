@@ -1,173 +1,115 @@
-import { motion } from 'framer-motion';
-import { ArrowRight, BookOpen, Coffee, Dna, Moon, Sun, Sparkles } from 'lucide-react';
-import { Link } from 'wouter';
-import { useBooks } from '@/hooks/useBooks';
-import { useProfile } from '@/hooks/useProfile';
-import { useTastings } from '@/hooks/useTastings';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Coffee, Filter, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { useLocation } from 'wouter';
+import { format, isToday, isYesterday, isThisWeek, parseISO } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { useTastings, Tasting } from '@/hooks/useTastings';
+import { JournalTastingCard } from '@/components/journal/JournalTastingCard';
+import { JournalPreview } from '@/components/journal/JournalPreview';
+import { tastingSearchText } from '@/lib/journal';
 
-function greeting() {
-  const hour = new Date().getHours();
-  if (hour < 5) return 'Доброй ночи';
-  if (hour < 12) return 'Доброе утро';
-  if (hour < 18) return 'Добрый день';
-  return 'Добрый вечер';
+function groupTitle(date: Date): string {
+  if (isToday(date)) return 'Сегодня';
+  if (isYesterday(date)) return 'Вчера';
+  if (isThisWeek(date, { weekStartsOn: 1 })) return 'На этой неделе';
+  return format(date, 'LLLL yyyy', { locale: ru });
 }
-
-function descriptors(tasting?: ReturnType<typeof useTastings>['tastings'][number]) {
-  if (!tasting) return [];
-  return [...(tasting.topThreeDescriptors || []), ...(tasting.additionalDescriptors || [])].filter(Boolean).slice(0, 3);
-}
-
-const reveal = {
-  initial: { opacity: 0, y: 26 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.22 },
-  transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const },
-};
 
 export default function Home() {
-  const { profile } = useProfile();
-  const { tastings } = useTastings();
-  const { books } = useBooks();
-  const { resolvedTheme, toggleTheme } = useTheme();
-  const latest = tastings[0];
-  const reading = books.find((book) => book.status === 'reading') || books[0];
-  const tags = descriptors(latest);
+  const [, navigate] = useLocation();
+  const { tastings, updateTasting, deleteTasting } = useTastings();
+  const [query, setQuery] = useState('');
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [preview, setPreview] = useState<Tasting | null>(null);
+
+  const filtered = useMemo(() => tastings.filter((tasting) => {
+    const matches = !query.trim() || tastingSearchText(tasting).includes(query.trim().toLowerCase());
+    return matches && (!onlyFavorites || tasting.favorite);
+  }), [tastings, query, onlyFavorites]);
+
+  const grouped = useMemo(() => {
+    const result: { title: string; items: Tasting[] }[] = [];
+    filtered.forEach((tasting) => {
+      const title = groupTitle(parseISO(tasting.createdAt));
+      const last = result[result.length - 1];
+      if (last?.title === title) last.items.push(tasting);
+      else result.push({ title, items: [tasting] });
+    });
+    return result;
+  }, [filtered]);
+
+  const share = async (tasting: Tasting) => {
+    const text = `${tasting.coffeeName} — ${tasting.overallScore}/100\n${[tasting.country, tasting.processing || tasting.process].filter(Boolean).join(' · ')}`;
+    if (navigator.share) await navigator.share({ title: tasting.coffeeName, text }).catch(() => undefined);
+    else await navigator.clipboard?.writeText(text);
+  };
+
+  const remove = (tasting: Tasting) => {
+    if (window.confirm(`Удалить «${tasting.coffeeName}»?`)) deleteTasting(tasting.id);
+  };
 
   return (
-    <main className="cm-home min-h-full pb-32">
-      <section className="px-5 iphone-safe-top pt-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">CoffeeMind</p>
-            <h1 className="mt-3 font-serif text-[2.15rem] leading-[1.05] text-foreground">
-              {greeting()},<br />{profile.name}.
-            </h1>
-            <p className="mt-3 max-w-[290px] text-[14px] leading-6 text-muted-foreground">
-              Сегодня отличный день для новой истории вкуса.
-            </p>
-          </div>
-          <motion.button
-            whileTap={{ scale: 0.88, rotate: 8 }}
-            onClick={toggleTheme}
-            aria-label="Переключить тему"
-            className="cm-icon-button"
-          >
-            <motion.span
-              key={resolvedTheme}
-              initial={{ opacity: 0, rotate: -30, scale: 0.6 }}
-              animate={{ opacity: 1, rotate: 0, scale: 1 }}
-            >
-              {resolvedTheme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
-            </motion.span>
-          </motion.button>
+    <main className="cm-journal min-h-full pb-32 iphone-safe-top">
+      <header className="cm-journal-header px-4 pt-3">
+        <div>
+          <p className="cm-journal-eyebrow">Мой кофейный путь</p>
+          <h1>Журнал</h1>
+          <p>{tastings.length ? `${tastings.length} ${tastings.length === 1 ? 'глава' : 'глав'} о вкусе` : 'Первая глава ещё впереди'}</p>
+        </div>
+        <motion.button whileTap={{ scale: .88 }} className={`cm-journal-filter ${onlyFavorites ? 'is-active' : ''}`} onClick={() => setOnlyFavorites((value) => !value)} aria-label="Только избранное">
+          <Filter size={18} />
+        </motion.button>
+      </header>
+
+      <section className="px-4 mt-5">
+        <div className="cm-journal-search">
+          <Search size={18} />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Страна, обработка, вкус, метод…" />
+          {query && <button onClick={() => setQuery('')}><X size={17} /></button>}
+          {!query && <SlidersHorizontal size={16} className="opacity-45" />}
         </div>
       </section>
 
-      <motion.section {...reveal} className="px-4 mt-7">
-        <Link href={latest ? `/tasting/${latest.id}` : '/add'}>
-          <motion.article
-            whileTap={{ scale: 0.985 }}
-            whileHover={{ y: -2 }}
-            className="cm-hero-card group"
-          >
-            <div className="cm-hero-art" aria-hidden="true">
-              <svg viewBox="0 0 420 310" className="h-full w-full" role="img">
-                <defs>
-                  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="#0A2134" />
-                    <stop offset="1" stopColor="#162C3D" />
-                  </linearGradient>
-                  <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="#FF6A3D" />
-                    <stop offset="1" stopColor="#FF3E1D" />
-                  </linearGradient>
-                </defs>
-                <rect width="420" height="310" rx="32" fill="url(#bg)" />
-                <circle cx="326" cy="76" r="68" fill="url(#accent)" opacity=".92" />
-                <path d="M28 246C92 180 136 226 188 155s94-82 204-44v199H28Z" fill="#071522" opacity=".72" />
-                <path d="M290 69c21-29 34-31 49-45-3 24-13 42-29 55" fill="none" stroke="#173C31" strokeWidth="10" strokeLinecap="round" />
-                <ellipse cx="204" cy="184" rx="67" ry="18" fill="#06111A" opacity=".7" />
-                <path d="M147 123h106l-13 76c-3 19-19 34-39 34h-2c-20 0-36-15-39-34Z" fill="#D6D7D7" />
-                <path d="M154 139h92l-5 25h-82Z" fill="#F3F1EA" />
-                <path d="M157 164h84l-7 39c-3 14-16 25-31 25h-6c-15 0-28-11-31-25Z" fill="#4A2E22" />
-                <path d="M254 147c31 0 45 13 45 31s-14 31-43 31" fill="none" stroke="#D6D7D7" strokeWidth="13" strokeLinecap="round" />
-                <circle cx="72" cy="230" r="30" fill="#FF5A2E" />
-                <path d="M67 230h14m-7-7 7 7-7 7" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-[#07111a]/95 via-transparent to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-              <span className="cm-kicker-dark">Последняя дегустация</span>
-              <h2 className="mt-3 font-serif text-[1.85rem] leading-tight">
-                {latest?.coffeeName || 'Сохрани первую чашку'}
-              </h2>
-              <p className="mt-2 text-[13px] text-white/67">
-                {latest ? [latest.country, latest.processing || latest.process].filter(Boolean).join(' · ') : 'Новая глава начинается здесь'}
-              </p>
-              {tags.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {tags.map((tag) => <span key={tag} className="cm-dark-chip">{tag}</span>)}
+      {tastings.length === 0 ? (
+        <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="cm-journal-empty mx-4 mt-6">
+          <div className="cm-journal-empty-icon"><Coffee size={27} /></div>
+          <p className="cm-journal-eyebrow">Новая история</p>
+          <h2>Сохрани первую чашку</h2>
+          <p>Через время эти записи станут картой того, как менялся твой вкус.</p>
+          <button onClick={() => navigate('/add')} className="cm-primary-action mt-6"><Sparkles size={18} />Начать дегустацию</button>
+        </motion.section>
+      ) : (
+        <div className="px-4 mt-7 space-y-8">
+          <AnimatePresence mode="popLayout">
+            {grouped.map((group, groupIndex) => (
+              <motion.section key={group.title} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: groupIndex * .05 }}>
+                <div className="cm-journal-section-head"><h2>{group.title}</h2><span>{group.items.length}</span></div>
+                <div className="space-y-3">
+                  <AnimatePresence mode="popLayout">
+                    {group.items.map((tasting, index) => (
+                      <motion.div key={tasting.id} layout initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: .96 }} transition={{ delay: index * .025 }}>
+                        <JournalTastingCard
+                          tasting={tasting}
+                          onOpen={() => navigate(`/tasting/${tasting.id}`)}
+                          onEdit={() => navigate(`/tasting/${tasting.id}/edit`)}
+                          onDelete={() => remove(tasting)}
+                          onFavorite={() => updateTasting(tasting.id, { favorite: !tasting.favorite })}
+                          onShare={() => share(tasting)}
+                          onPreview={() => setPreview(tasting)}
+                        />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                 </div>
-              )}
-            </div>
-          </motion.article>
-        </Link>
-      </motion.section>
+              </motion.section>
+            ))}
+          </AnimatePresence>
+          {filtered.length === 0 && <div className="cm-no-results"><Search size={22} /><p>Ничего не найдено</p><button onClick={() => { setQuery(''); setOnlyFavorites(false); }}>Сбросить фильтры</button></div>}
+        </div>
+      )}
 
-      <motion.section {...reveal} className="px-4 mt-4 grid grid-cols-2 gap-3">
-        <Link href="/stats">
-          <motion.article whileTap={{ scale: 0.97 }} className="cm-feature-card cm-feature-card-accent">
-            <div className="flex items-center justify-between">
-              <div className="cm-feature-icon"><Dna size={19} /></div>
-              <ArrowRight size={17} className="opacity-60" />
-            </div>
-            <p className="mt-7 text-[11px] uppercase tracking-[0.16em] opacity-65">Coffee DNA</p>
-            <h3 className="mt-2 text-[17px] font-semibold leading-snug">Твой вкус становится точнее</h3>
-            <div className="mt-5 cm-pulse-orbit"><span /></div>
-          </motion.article>
-        </Link>
-
-        <Link href="/books">
-          <motion.article whileTap={{ scale: 0.97 }} className="cm-feature-card">
-            <div className="flex items-center justify-between">
-              <div className="cm-feature-icon"><BookOpen size={19} /></div>
-              <ArrowRight size={17} className="text-muted-foreground" />
-            </div>
-            <p className="mt-7 text-[11px] uppercase tracking-[0.16em] text-primary">Продолжить чтение</p>
-            <h3 className="mt-2 text-[17px] font-semibold leading-snug text-foreground">
-              {reading?.title || 'Добавь книгу к своей истории'}
-            </h3>
-            <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-muted-foreground">{reading?.author || 'Кофе и книги могут хранить один момент вместе.'}</p>
-          </motion.article>
-        </Link>
-      </motion.section>
-
-      <motion.section {...reveal} className="px-4 mt-4">
-        <article className="cm-insight-card">
-          <div className="flex items-start gap-4">
-            <div className="cm-insight-symbol"><Sparkles size={19} /></div>
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-primary">Совет дня</p>
-              <h3 className="mt-2 font-serif text-[1.42rem] leading-snug text-foreground">
-                Сегодня попробуй обратить внимание только на сладость.
-              </h3>
-              <p className="mt-3 text-[13px] leading-6 text-muted-foreground">Маленькое наблюдение — большой рост.</p>
-            </div>
-          </div>
-        </article>
-      </motion.section>
-
-      <motion.section {...reveal} className="px-4 mt-4">
-        <Link href="/add">
-          <motion.button whileTap={{ scale: 0.98 }} className="cm-primary-action w-full">
-            <Coffee size={19} />
-            <span>Новая дегустация</span>
-            <ArrowRight size={19} className="ml-auto" />
-          </motion.button>
-        </Link>
-      </motion.section>
+      <JournalPreview tasting={preview} onClose={() => setPreview(null)} onOpen={() => { if (preview) navigate(`/tasting/${preview.id}`); setPreview(null); }} />
     </main>
   );
 }

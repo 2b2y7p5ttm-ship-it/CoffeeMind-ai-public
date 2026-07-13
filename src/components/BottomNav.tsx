@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 
 const NAV_ITEMS = [
-  { href: '/', icon: Home, label: 'Главная' },
+  { href: '/', icon: Home, label: 'Журнал' },
   { href: '/stats', icon: Dna, label: 'DNA' },
   null,
   { href: '/books', icon: BookOpen, label: 'Книги' },
