@@ -20,8 +20,9 @@ import { fillSystemCopy, useSystemCopy } from '@/lib/systemI18n';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { ACHIEVEMENTS_STORAGE_KEY } from '@/hooks/useAchievements';
 import { WEEKLY_CHALLENGES_STORAGE_KEY } from '@/hooks/useWeeklyChallenges';
+import { EXAMS_STORAGE_KEY } from '@/hooks/useExams';
 
-const BACKUP_VERSION = '2.4';
+const BACKUP_VERSION = '2.6';
 const TASTINGS_KEY = 'coffee_journal_tastings';
 const PROFILE_KEY = 'coffee_journal_profile';
 const BOOKS_KEY = 'coffeemind_book_ratings';
@@ -37,6 +38,7 @@ interface BackupPayload {
     books: unknown[];
     achievements?: unknown;
     weeklyChallenges?: unknown;
+    exams?: unknown;
   };
 }
 
@@ -101,6 +103,7 @@ export default function Backup() {
   const { books } = useBooks();
   const [achievementStore] = useLocalStorage<unknown>(ACHIEVEMENTS_STORAGE_KEY, null);
   const [weeklyChallengeStore] = useLocalStorage<unknown>(WEEKLY_CHALLENGES_STORAGE_KEY, null);
+  const [examStore] = useLocalStorage<unknown>(EXAMS_STORAGE_KEY, null);
   const { copy, locale } = useSystemCopy();
   const c = copy.backup;
   const fileRef = useRef<HTMLInputElement>(null);
@@ -118,8 +121,9 @@ export default function Backup() {
       books,
       achievements: achievementStore,
       weeklyChallenges: weeklyChallengeStore,
+      exams: examStore,
     },
-  }), [achievementStore, books, c.deviceNote, profile, tastings, weeklyChallengeStore]);
+  }), [achievementStore, books, c.deviceNote, examStore, profile, tastings, weeklyChallengeStore]);
 
   const summary = [
     { label: c.summary.tastings, value: tastings.length },
@@ -175,6 +179,9 @@ export default function Backup() {
     }
     if (importPreview.data.weeklyChallenges) {
       localStorage.setItem(WEEKLY_CHALLENGES_STORAGE_KEY, JSON.stringify(importPreview.data.weeklyChallenges));
+    }
+    if (importPreview.data.exams) {
+      localStorage.setItem(EXAMS_STORAGE_KEY, JSON.stringify(importPreview.data.exams));
     }
     setStatus(c.restored);
     setTimeout(() => window.location.assign('/'), 500);

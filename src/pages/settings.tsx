@@ -30,6 +30,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { resolveDisplayName } from '@/lib/profileIdentity';
 import { ACHIEVEMENTS_STORAGE_KEY } from '@/hooks/useAchievements';
 import { WEEKLY_CHALLENGES_STORAGE_KEY } from '@/hooks/useWeeklyChallenges';
+import { EXAMS_STORAGE_KEY } from '@/hooks/useExams';
 
 function Row({
   icon: Icon,
@@ -129,8 +130,16 @@ export default function Settings() {
           return null;
         }
       })(),
+      exams: (() => {
+        try {
+          const raw = localStorage.getItem(EXAMS_STORAGE_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch {
+          return null;
+        }
+      })(),
       exportedAt: new Date().toISOString(),
-      version: '2.5',
+      version: '2.6',
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -149,6 +158,7 @@ export default function Settings() {
     localStorage.removeItem('coffeemind_book_ratings');
     localStorage.removeItem(ACHIEVEMENTS_STORAGE_KEY);
     localStorage.removeItem(WEEKLY_CHALLENGES_STORAGE_KEY);
+    localStorage.removeItem(EXAMS_STORAGE_KEY);
     window.location.reload();
   };
 

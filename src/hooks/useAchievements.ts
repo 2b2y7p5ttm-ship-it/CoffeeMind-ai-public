@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useTastings } from '@/hooks/useTastings';
 import { ACHIEVEMENTS, AchievementId, buildAchievementProgress } from '@/lib/achievements';
+import { useExams } from '@/hooks/useExams';
 
 export const ACHIEVEMENTS_STORAGE_KEY = 'coffeemind_achievements_v1';
 
@@ -25,8 +26,12 @@ const EMPTY_STORE: AchievementStore = {
 export function useAchievements(options: { track?: boolean } = {}) {
   const { track = false } = options;
   const { tastings } = useTastings();
+  const { passedCount, perfectCount } = useExams();
   const [store, setStore] = useLocalStorage<AchievementStore>(ACHIEVEMENTS_STORAGE_KEY, EMPTY_STORE);
-  const progress = useMemo(() => buildAchievementProgress(tastings), [tastings]);
+  const progress = useMemo(
+    () => buildAchievementProgress(tastings, { passedCount, perfectCount }),
+    [passedCount, perfectCount, tastings],
+  );
 
   useEffect(() => {
     if (!track) return;

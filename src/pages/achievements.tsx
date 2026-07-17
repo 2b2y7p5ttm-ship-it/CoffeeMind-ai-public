@@ -15,6 +15,7 @@ const CATEGORY_ORDER: Array<'all' | AchievementCategory> = [
   'processing',
   'consistency',
   'sensory',
+  'education',
 ];
 
 export default function Achievements() {

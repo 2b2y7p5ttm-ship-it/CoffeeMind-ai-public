@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
-import { AlertCircle, Award, Brain, CalendarCheck2, Check, CheckCircle2, ChevronRight, Cloud, CloudOff, Coffee, Coins, Edit2, Flame, Globe, Loader2, LogIn, LogOut, Mail, Settings, Star, Trophy, X } from 'lucide-react';
+import { AlertCircle, Award, Brain, CalendarCheck2, Check, CheckCircle2, ChevronRight, Cloud, CloudOff, Coffee, Coins, Edit2, Flame, Globe, GraduationCap, Loader2, LogIn, LogOut, Mail, Settings, Star, Trophy, X } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useTastings, Tasting } from '@/hooks/useTastings';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { resolveDisplayName } from '@/lib/profileIdentity';
 import { useCloudSync } from '@/hooks/useCloudSync';
 import { useAchievements } from '@/hooks/useAchievements';
 import { useWeeklyChallenges } from '@/hooks/useWeeklyChallenges';
+import { useExams } from '@/hooks/useExams';
 
 function getInitials(name: string): string {
   return name.split(' ').map((word) => word[0]).join('').toUpperCase().slice(0, 2);
@@ -111,6 +112,7 @@ export default function Profile() {
   const profileCopy = copy.profile;
   const achievementCopy = copy.achievements;
   const challengeCopy = copy.challenges;
+  const examCopy = copy.exams;
   const displayName = useMemo(() => resolveDisplayName({
     profileName: profile.name,
     metadataName: typeof user?.user_metadata?.name === 'string' ? user.user_metadata.name : '',
@@ -206,6 +208,7 @@ export default function Profile() {
   const dominantTaste = tasteDna.find((item) => item.hits > 0);
   const { achievements, unlockedCount, totalCount, totalPoints } = useAchievements();
   const { weeklyChallenges, weeklyCompleted, currentWeekPoints } = useWeeklyChallenges({ track: true });
+  const { currentWeekAttempts, currentWeekBest, totalPoints: examPoints } = useExams();
 
   return (
     <div className="px-4 iphone-safe-top pb-28 min-h-full">
@@ -585,6 +588,52 @@ export default function Profile() {
                 animate={{ width: `${weeklyChallenges.length ? (weeklyCompleted / weeklyChallenges.length) * 100 : 0}%` }}
                 transition={{ type: 'spring', stiffness: 170, damping: 24 }}
               />
+            </div>
+          </motion.div>
+        </Link>
+      </section>
+
+      <section className="mb-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50">{examCopy.profileTitle}</p>
+          <Link href="/exams">
+            <motion.span whileTap={{ scale: 0.96 }} className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary">
+              {examCopy.profileAction}
+              <ChevronRight size={13} />
+            </motion.span>
+          </Link>
+        </div>
+
+        <Link href="/exams">
+          <motion.div
+            whileTap={{ scale: 0.985 }}
+            className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-emerald-500/[0.08] via-card/70 to-card/55 border border-emerald-500/16 p-4"
+          >
+            <div className="absolute -right-5 -top-8 text-[86px] opacity-[0.05]">📝</div>
+            <div className="relative flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 grid place-items-center flex-shrink-0">
+                  <GraduationCap size={19} className="text-emerald-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-serif text-lg font-semibold text-foreground">{examCopy.profileTitle}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {currentWeekAttempts.length
+                      ? fillSectionCopy(examCopy.profileSubtitle, {
+                          attempts: currentWeekAttempts.length,
+                          best: currentWeekBest === null ? '—' : `${currentWeekBest}%`,
+                        })
+                      : examCopy.profileNoAttempts}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <div className="inline-flex items-center gap-1 text-primary font-bold text-sm">
+                  <Coins size={14} />
+                  {examPoints}
+                </div>
+                <p className="text-[9px] uppercase tracking-widest text-muted-foreground/50 mt-0.5">{examCopy.points}</p>
+              </div>
             </div>
           </motion.div>
         </Link>

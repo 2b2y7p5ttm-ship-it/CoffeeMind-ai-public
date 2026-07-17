@@ -3,7 +3,7 @@ import { canonicalizeBrewMethod } from '@/lib/brewMethodI18n';
 import { canonicalizeCountry } from '@/lib/coffeeReferenceI18n';
 import { canonicalizeProcessing } from '@/lib/processingI18n';
 
-export type AchievementCategory = 'journey' | 'origins' | 'quality' | 'methods' | 'processing' | 'consistency' | 'sensory';
+export type AchievementCategory = 'journey' | 'origins' | 'quality' | 'methods' | 'processing' | 'consistency' | 'sensory' | 'education';
 
 export type AchievementId =
   | 'first'
@@ -20,7 +20,14 @@ export type AchievementId =
   | 'processExplorer'
   | 'streakThree'
   | 'streakSeven'
-  | 'flavorLibrary';
+  | 'flavorLibrary'
+  | 'examFirstPass'
+  | 'examPerfect';
+
+export interface ExamAchievementStats {
+  passedCount: number;
+  perfectCount: number;
+}
 
 export interface AchievementDefinition {
   id: AchievementId;
@@ -28,7 +35,7 @@ export interface AchievementDefinition {
   icon: string;
   target: number;
   rewardPoints: number;
-  metric: (tastings: Tasting[]) => number;
+  metric: (tastings: Tasting[], exams: ExamAchievementStats) => number;
 }
 
 function getProcessing(tasting: Tasting): string {
@@ -101,6 +108,8 @@ export const ACHIEVEMENTS: readonly AchievementDefinition[] = [
   { id: 'streakThree', category: 'consistency', icon: '🔥', target: 3, rewardPoints: 30, metric: calculateTastingStreak },
   { id: 'streakSeven', category: 'consistency', icon: '⚡', target: 7, rewardPoints: 70, metric: calculateTastingStreak },
   { id: 'flavorLibrary', category: 'sensory', icon: '🎨', target: 25, rewardPoints: 60, metric: getUniqueDescriptors },
+  { id: 'examFirstPass', category: 'education', icon: '📝', target: 1, rewardPoints: 50, metric: (_tastings, exams) => exams.passedCount },
+  { id: 'examPerfect', category: 'education', icon: '🎓', target: 1, rewardPoints: 100, metric: (_tastings, exams) => exams.perfectCount },
 ] as const;
 
 export interface AchievementProgress extends AchievementDefinition {
@@ -109,9 +118,12 @@ export interface AchievementProgress extends AchievementDefinition {
   unlocked: boolean;
 }
 
-export function buildAchievementProgress(tastings: Tasting[]): AchievementProgress[] {
+export function buildAchievementProgress(
+  tastings: Tasting[],
+  exams: ExamAchievementStats = { passedCount: 0, perfectCount: 0 },
+): AchievementProgress[] {
   return ACHIEVEMENTS.map((achievement) => {
-    const current = Math.max(0, achievement.metric(tastings));
+    const current = Math.max(0, achievement.metric(tastings, exams));
     return {
       ...achievement,
       current,
