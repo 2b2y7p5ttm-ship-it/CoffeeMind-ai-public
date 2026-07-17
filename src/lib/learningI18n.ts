@@ -1,0 +1,118 @@
+import { useLanguage } from '@/contexts/LanguageContext';
+import type { ExamTopic } from '@/lib/exams';
+import type { LearningLevel } from '@/lib/learning';
+
+const ru = {
+  backProfile: 'Назад в профиль',
+  backLearning: 'Назад к обучению',
+  eyebrow: 'CoffeeMind Academy',
+  title: 'Обучение',
+  subtitle: 'Короткие уроки связывают теорию с журналом дегустаций и подготавливают к еженедельным экзаменам.',
+  progressTitle: 'Твой учебный прогресс',
+  completedLessons: 'уроков завершено',
+  knowledgeScore: 'уровень знаний',
+  recommendation: 'Рекомендуемый урок',
+  basedOnExam: 'Выбрано по результатам экзаменов и прогрессу обучения.',
+  startLesson: 'Начать урок',
+  continueLesson: 'Продолжить',
+  repeatLesson: 'Повторить',
+  topicsTitle: 'Направления',
+  lessonsTitle: 'Все уроки',
+  lessonCount: '{completed} из {total} уроков',
+  examAccuracy: 'Точность экзаменов: {value}',
+  noExamData: 'Экзамены ещё не пройдены',
+  completed: 'Завершено',
+  minutes: '{count} мин.',
+  lesson: 'Урок',
+  keyTakeaways: 'Главное из урока',
+  checkpoint: 'Проверка понимания',
+  chooseAnswer: 'Выбери один ответ',
+  correct: 'Верно',
+  incorrect: 'Неверно',
+  completeLesson: 'Завершить урок',
+  lessonCompleted: 'Урок завершён',
+  nextLesson: 'Следующий урок',
+  toAcademy: 'К списку уроков',
+  examCtaTitle: 'Готов проверить знания?',
+  examCtaDescription: 'Экзамен использует темы из этих направлений и покажет, что стоит повторить.',
+  openExam: 'Открыть экзамен',
+  profileTitle: 'Обучение',
+  profileAction: 'Открыть академию',
+  profileSubtitle: '{completed} из {total} уроков · уровень: {level}',
+  weakTopic: 'Фокус: {topic}',
+  disclaimer: 'CoffeeMind помогает учиться и практиковаться, но не является официальной сертификацией SCA или Q Grader.',
+  topics: {
+    origins: { title: 'Происхождение', description: 'География, виды, разновидности и терруар.', icon: '🌍' },
+    processing: { title: 'Обработка', description: 'Ферментация, сушка и путь после сбора.', icon: '⚗️' },
+    brewing: { title: 'Заваривание', description: 'Экстракция, методы, вода и повторяемость.', icon: '☕' },
+    sensory: { title: 'Сенсорика', description: 'Восприятие, CVA, словарь и калибровка.', icon: '👃' },
+  } satisfies Record<ExamTopic, { title: string; description: string; icon: string }>,
+  levels: {
+    foundation: 'Основа',
+    developing: 'Развитие',
+    confident: 'Уверенный',
+    advanced: 'Продвинутый',
+  } satisfies Record<LearningLevel, string>,
+};
+
+const en: typeof ru = {
+  backProfile: 'Back to profile',
+  backLearning: 'Back to learning',
+  eyebrow: 'CoffeeMind Academy',
+  title: 'Learning',
+  subtitle: 'Short lessons connect theory with your tasting journal and prepare you for weekly exams.',
+  progressTitle: 'Your learning progress',
+  completedLessons: 'lessons completed',
+  knowledgeScore: 'knowledge score',
+  recommendation: 'Recommended lesson',
+  basedOnExam: 'Selected from your exam results and learning progress.',
+  startLesson: 'Start lesson',
+  continueLesson: 'Continue',
+  repeatLesson: 'Review',
+  topicsTitle: 'Learning paths',
+  lessonsTitle: 'All lessons',
+  lessonCount: '{completed} of {total} lessons',
+  examAccuracy: 'Exam accuracy: {value}',
+  noExamData: 'No exam data yet',
+  completed: 'Completed',
+  minutes: '{count} min',
+  lesson: 'Lesson',
+  keyTakeaways: 'Key takeaways',
+  checkpoint: 'Knowledge check',
+  chooseAnswer: 'Choose one answer',
+  correct: 'Correct',
+  incorrect: 'Incorrect',
+  completeLesson: 'Complete lesson',
+  lessonCompleted: 'Lesson completed',
+  nextLesson: 'Next lesson',
+  toAcademy: 'Back to lessons',
+  examCtaTitle: 'Ready to test your knowledge?',
+  examCtaDescription: 'The exam draws from these learning paths and shows what to review next.',
+  openExam: 'Open exam',
+  profileTitle: 'Learning',
+  profileAction: 'Open academy',
+  profileSubtitle: '{completed} of {total} lessons · level: {level}',
+  weakTopic: 'Focus: {topic}',
+  disclaimer: 'CoffeeMind supports learning and practice but is not an official SCA or Q Grader certification.',
+  topics: {
+    origins: { title: 'Origins', description: 'Geography, species, varieties, and terroir.', icon: '🌍' },
+    processing: { title: 'Processing', description: 'Fermentation, drying, and post-harvest pathways.', icon: '⚗️' },
+    brewing: { title: 'Brewing', description: 'Extraction, methods, water, and repeatability.', icon: '☕' },
+    sensory: { title: 'Sensory', description: 'Perception, CVA, vocabulary, and calibration.', icon: '👃' },
+  },
+  levels: {
+    foundation: 'Foundation',
+    developing: 'Developing',
+    confident: 'Confident',
+    advanced: 'Advanced',
+  },
+};
+
+export function fillLearningCopy(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? `{${key}}`));
+}
+
+export function useLearningCopy() {
+  const { language, locale } = useLanguage();
+  return { copy: language === 'ru' ? ru : en, language, locale };
+}

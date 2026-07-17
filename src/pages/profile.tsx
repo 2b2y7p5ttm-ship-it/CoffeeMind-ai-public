@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
-import { AlertCircle, Award, Brain, CalendarCheck2, Check, CheckCircle2, ChevronRight, Cloud, CloudOff, Coffee, Coins, Edit2, Flame, Globe, GraduationCap, Loader2, LogIn, LogOut, Mail, Settings, Star, Trophy, X } from 'lucide-react';
+import { AlertCircle, Award, BookOpenCheck, Brain, CalendarCheck2, Check, CheckCircle2, ChevronRight, Cloud, CloudOff, Coffee, Coins, Edit2, Flame, Globe, GraduationCap, Loader2, LogIn, LogOut, Mail, Settings, Star, Trophy, X } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useTastings, Tasting } from '@/hooks/useTastings';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,8 @@ import { useCloudSync } from '@/hooks/useCloudSync';
 import { useAchievements } from '@/hooks/useAchievements';
 import { useWeeklyChallenges } from '@/hooks/useWeeklyChallenges';
 import { useExams } from '@/hooks/useExams';
+import { useLearning } from '@/hooks/useLearning';
+import { fillLearningCopy, useLearningCopy } from '@/lib/learningI18n';
 
 function getInitials(name: string): string {
   return name.split(' ').map((word) => word[0]).join('').toUpperCase().slice(0, 2);
@@ -113,6 +115,7 @@ export default function Profile() {
   const achievementCopy = copy.achievements;
   const challengeCopy = copy.challenges;
   const examCopy = copy.exams;
+  const { copy: learningCopy } = useLearningCopy();
   const displayName = useMemo(() => resolveDisplayName({
     profileName: profile.name,
     metadataName: typeof user?.user_metadata?.name === 'string' ? user.user_metadata.name : '',
@@ -209,6 +212,7 @@ export default function Profile() {
   const { achievements, unlockedCount, totalCount, totalPoints } = useAchievements();
   const { weeklyChallenges, weeklyCompleted, currentWeekPoints } = useWeeklyChallenges({ track: true });
   const { currentWeekAttempts, currentWeekBest, totalPoints: examPoints } = useExams();
+  const { completedCount: learningCompleted, totalCount: learningTotal, overallLevel: learningLevel, progressRatio: learningProgress, weakTopic: learningWeakTopic } = useLearning();
 
   return (
     <div className="px-4 iphone-safe-top pb-28 min-h-full">
@@ -586,6 +590,56 @@ export default function Profile() {
                 className="h-full rounded-full bg-gradient-to-r from-primary/65 to-primary"
                 initial={{ width: 0 }}
                 animate={{ width: `${weeklyChallenges.length ? (weeklyCompleted / weeklyChallenges.length) * 100 : 0}%` }}
+                transition={{ type: 'spring', stiffness: 170, damping: 24 }}
+              />
+            </div>
+          </motion.div>
+        </Link>
+      </section>
+
+      <section className="mb-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50">{learningCopy.profileTitle}</p>
+          <Link href="/learning">
+            <motion.span whileTap={{ scale: 0.96 }} className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary">
+              {learningCopy.profileAction}
+              <ChevronRight size={13} />
+            </motion.span>
+          </Link>
+        </div>
+
+        <Link href="/learning">
+          <motion.div
+            whileTap={{ scale: 0.985 }}
+            className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-sky-500/[0.09] via-card/70 to-card/55 border border-sky-500/16 p-4"
+          >
+            <div className="absolute -right-5 -top-8 text-[86px] opacity-[0.05]">📚</div>
+            <div className="relative flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 rounded-2xl bg-sky-500/10 border border-sky-500/20 grid place-items-center flex-shrink-0">
+                  <BookOpenCheck size={19} className="text-sky-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-serif text-lg font-semibold text-foreground">{learningCopy.profileTitle}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {fillLearningCopy(learningCopy.profileSubtitle, {
+                      completed: learningCompleted,
+                      total: learningTotal,
+                      level: learningCopy.levels[learningLevel],
+                    })}
+                  </p>
+                  <p className="text-[9px] text-primary/80 mt-1">
+                    {fillLearningCopy(learningCopy.weakTopic, { topic: learningCopy.topics[learningWeakTopic].title })}
+                  </p>
+                </div>
+              </div>
+              <span className="font-serif text-2xl text-sky-400 flex-shrink-0">{Math.round(learningProgress * 100)}%</span>
+            </div>
+            <div className="relative mt-4 h-2 rounded-full bg-black/10 dark:bg-white/[0.06] overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-sky-500/65 to-sky-400"
+                initial={{ width: 0 }}
+                animate={{ width: `${learningProgress * 100}%` }}
                 transition={{ type: 'spring', stiffness: 170, damping: 24 }}
               />
             </div>

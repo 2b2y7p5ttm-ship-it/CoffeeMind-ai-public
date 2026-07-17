@@ -28,6 +28,9 @@ import {
   localizeExamText,
 } from '@/lib/exams';
 import { ExamAttemptRecord, useExams } from '@/hooks/useExams';
+import { useLearning } from '@/hooks/useLearning';
+import { localizeLearningText } from '@/lib/learning';
+import { useLearningCopy } from '@/lib/learningI18n';
 
 const ANSWER_LABELS = ['A', 'B', 'C', 'D'];
 
@@ -45,6 +48,7 @@ function formatAttemptDate(value: string, locale: string): string {
 export default function Exams() {
   const { copy, language, locale } = useSectionCopy();
   const c = copy.exams;
+  const { copy: learningCopy } = useLearningCopy();
   const {
     attempts,
     currentWeekAttempts,
@@ -53,6 +57,7 @@ export default function Exams() {
     totalPoints,
     submitAttempt,
   } = useExams();
+  const { recommendedLesson, completedCount: learningCompleted, totalCount: learningTotal } = useLearning();
 
   const [screen, setScreen] = useState<Screen>('overview');
   const [difficulty, setDifficulty] = useState<ExamDifficulty>('beginner');
@@ -431,6 +436,25 @@ export default function Exams() {
       </header>
 
       <p className="text-[13px] leading-relaxed text-muted-foreground mb-5">{c.subtitle}</p>
+
+      {recommendedLesson && (
+        <Link href={`/learning/${recommendedLesson.id}`}>
+          <motion.section
+            whileTap={{ scale: 0.99 }}
+            className="rounded-[24px] bg-sky-500/[0.07] border border-sky-500/18 p-4 mb-5 flex items-center gap-3"
+          >
+            <div className="w-11 h-11 rounded-2xl bg-sky-500/10 border border-sky-500/20 grid place-items-center flex-shrink-0">
+              <BookOpenCheck size={18} className="text-sky-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[9px] uppercase tracking-widest text-sky-400 font-bold">{learningCopy.recommendation}</p>
+              <p className="text-[13px] font-medium text-foreground mt-1 truncate">{localizeLearningText(recommendedLesson.title, language)}</p>
+              <p className="text-[9px] text-muted-foreground mt-1">{learningCompleted}/{learningTotal} · {learningCopy.basedOnExam}</p>
+            </div>
+            <ChevronRight size={16} className="text-muted-foreground/40 flex-shrink-0" />
+          </motion.section>
+        </Link>
+      )}
 
       <section className="relative overflow-hidden rounded-[28px] border border-primary/20 bg-gradient-to-br from-primary/[0.14] via-card/90 to-card/70 p-5 mb-6 shadow-[0_24px_70px_rgba(0,0,0,0.12)]">
         <div className="absolute -right-8 -top-10 text-[120px] opacity-[0.06]">📝</div>

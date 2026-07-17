@@ -20,6 +20,8 @@ import Admin from '@/pages/admin';
 import Achievements from '@/pages/achievements';
 import Challenges from '@/pages/challenges';
 import Exams from '@/pages/exams';
+import Learning from '@/pages/learning';
+import LearningLesson from '@/pages/learning-lesson';
 import NotFound from '@/pages/not-found';
 import { BottomNav } from '@/components/BottomNav';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -65,6 +67,8 @@ function App() {
                 <Route path="/achievements" component={Achievements} />
                 <Route path="/challenges" component={Challenges} />
                 <Route path="/exams" component={Exams} />
+                <Route path="/learning" component={Learning} />
+                <Route path="/learning/:lessonId" component={LearningLesson} />
                 <Route component={NotFound} />
               </Switch>
               </PageTransition>

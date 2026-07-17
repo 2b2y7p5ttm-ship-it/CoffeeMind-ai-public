@@ -16,7 +16,7 @@ export function BottomNav() {
   const [location] = useLocation();
   const hidden = useScrollDirection();
   const { t } = useLanguage();
-  if (location === '/add' || location.startsWith('/tasting/') || location.startsWith('/coach/') || ['/settings','/install','/welcome','/share','/backup','/account','/admin','/achievements','/challenges','/exams'].includes(location)) return null;
+  if (location === '/add' || location.startsWith('/tasting/') || location.startsWith('/coach/') || location.startsWith('/learning/') || ['/settings','/install','/welcome','/share','/backup','/account','/admin','/achievements','/challenges','/exams','/learning'].includes(location)) return null;
 
   return (
     <motion.div
