@@ -15,9 +15,20 @@ import { useLearning } from '@/hooks/useLearning';
 import {
   getLearningLesson,
   LEARNING_LESSONS,
+  LEARNING_TOPICS,
   localizeLearningText,
 } from '@/lib/learning';
 import { fillLearningCopy, useLearningCopy } from '@/lib/learningI18n';
+
+
+function shuffleOptions<T>(options: readonly T[]): T[] {
+  const shuffled = [...options];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
 
 export default function LearningLessonPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
@@ -27,6 +38,7 @@ export default function LearningLessonPage() {
   const { completed, markOpened, completeLesson } = useLearning();
   const [selectedOptionId, setSelectedOptionId] = useState('');
   const [showResult, setShowResult] = useState(false);
+  const [optionRound, setOptionRound] = useState(0);
 
   useEffect(() => {
     if (lesson) markOpened(lesson.id);
@@ -35,15 +47,26 @@ export default function LearningLessonPage() {
   useEffect(() => {
     setSelectedOptionId('');
     setShowResult(false);
+    setOptionRound(0);
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [lessonId]);
 
   const isCompleted = lesson ? Boolean(completed[lesson.id]) : false;
   const isCorrect = lesson ? selectedOptionId === lesson.checkpoint.correctOptionId : false;
+  const checkpointOptions = useMemo(
+    () => lesson ? shuffleOptions(lesson.checkpoint.options) : [],
+    [lesson, optionRound],
+  );
   const nextLesson = useMemo(() => {
     if (!lesson) return null;
-    const index = LEARNING_LESSONS.findIndex((item) => item.id === lesson.id);
-    return LEARNING_LESSONS[index + 1] ?? null;
+    const sequence = [...LEARNING_LESSONS].sort((a, b) => {
+      const stageDelta = a.stage - b.stage;
+      if (stageDelta !== 0) return stageDelta;
+      const topicDelta = LEARNING_TOPICS.indexOf(a.topic) - LEARNING_TOPICS.indexOf(b.topic);
+      return topicDelta || a.order - b.order;
+    });
+    const index = sequence.findIndex((item) => item.id === lesson.id);
+    return sequence[index + 1] ?? null;
   }, [lesson]);
 
   if (!lesson) {
@@ -66,7 +89,13 @@ export default function LearningLessonPage() {
 
   const finishLesson = () => {
     if (!selectedOptionId) return;
-    completeLesson(lesson.id, isCorrect);
+    if (!isCorrect) {
+      setSelectedOptionId('');
+      setShowResult(false);
+      setOptionRound((current) => current + 1);
+      return;
+    }
+    completeLesson(lesson.id, true);
   };
 
   return (
@@ -101,7 +130,7 @@ export default function LearningLessonPage() {
           <div className="flex items-start gap-3">
             <span className="text-4xl leading-none mt-1">{lesson.icon}</span>
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/45 font-bold">{copy.lesson} {lesson.order}</p>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/45 font-bold">{fillLearningCopy(copy.stageLabel, { stage: lesson.stage })} · {copy.lesson} {lesson.order}</p>
               <h1 className="font-serif text-[2rem] leading-[1.02] text-foreground mt-1">{localizeLearningText(lesson.title, language)}</h1>
             </div>
           </div>
@@ -159,9 +188,10 @@ export default function LearningLessonPage() {
             {localizeLearningText(lesson.checkpoint.question, language)}
           </h2>
           <p className="text-[10px] text-muted-foreground/55 mt-1">{copy.chooseAnswer}</p>
+          <p className="text-[9px] text-muted-foreground/40 mt-1">{copy.answersShuffleHint}</p>
 
           <div className="space-y-2.5 mt-4">
-            {lesson.checkpoint.options.map((option, index) => {
+            {checkpointOptions.map((option, index) => {
               const selected = selectedOptionId === option.id;
               const correct = showResult && option.id === lesson.checkpoint.correctOptionId;
               const incorrectSelected = showResult && selected && !correct;
@@ -231,8 +261,8 @@ export default function LearningLessonPage() {
               onClick={finishLesson}
               className="w-full h-12 rounded-2xl bg-primary text-primary-foreground text-[12px] font-bold mt-5 inline-flex items-center justify-center gap-2"
             >
-              <CheckCircle2 size={16} />
-              {isCompleted ? copy.lessonCompleted : copy.completeLesson}
+              {isCorrect ? <CheckCircle2 size={16} /> : <RotateCcw size={16} />}
+              {isCorrect ? (isCompleted ? copy.lessonCompleted : copy.completeLesson) : copy.tryAgain}
             </motion.button>
           )}
         </section>

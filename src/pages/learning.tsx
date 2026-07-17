@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { useLearning } from '@/hooks/useLearning';
-import { LEARNING_LESSONS, LEARNING_TOPICS, localizeLearningText } from '@/lib/learning';
+import { LEARNING_LESSONS, LEARNING_TOPICS, localizeLearningText, type LearningStage } from '@/lib/learning';
 import { fillLearningCopy, useLearningCopy } from '@/lib/learningI18n';
+
+const LEARNING_STAGES: readonly LearningStage[] = [1, 2, 3];
 
 export default function Learning() {
   const { copy, language } = useLearningCopy();
@@ -174,36 +176,63 @@ export default function Learning() {
         </section>
 
         <section>
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold mb-3 px-1">{copy.lessonsTitle}</p>
-          <div className="space-y-3">
-            {LEARNING_LESSONS.map((lesson, index) => {
-              const done = Boolean(completed[lesson.id]);
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold mb-3 px-1">{copy.stagesTitle}</p>
+          <div className="space-y-5">
+            {LEARNING_STAGES.map((stage) => {
+              const stageLessons = LEARNING_LESSONS
+                .filter((lesson) => lesson.stage === stage)
+                .sort((a, b) => {
+                  const topicDelta = LEARNING_TOPICS.indexOf(a.topic) - LEARNING_TOPICS.indexOf(b.topic);
+                  return topicDelta || a.order - b.order;
+                });
+              const stageCompleted = stageLessons.filter((lesson) => completed[lesson.id]).length;
               return (
-                <Link key={lesson.id} href={`/learning/${lesson.id}`}>
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(index * 0.025, 0.22) }}
-                    whileTap={{ scale: 0.99 }}
-                    className="rounded-[22px] bg-card/55 border border-white/[0.055] p-4 flex items-center gap-3"
-                  >
-                    <div className={`w-11 h-11 rounded-2xl grid place-items-center flex-shrink-0 border ${done ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-primary/[0.07] border-primary/14'}`}>
-                      {done ? <CheckCircle2 size={19} className="text-emerald-400" /> : <span className="text-xl">{lesson.icon}</span>}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] uppercase tracking-widest text-primary font-bold">{copy.topics[lesson.topic].title}</span>
-                        {done && <span className="text-[9px] text-emerald-400 font-semibold">{copy.completed}</span>}
-                      </div>
-                      <p className="font-medium text-[13px] text-foreground mt-1 truncate">{localizeLearningText(lesson.title, language)}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1 inline-flex items-center gap-1">
-                        <Clock3 size={11} />
-                        {fillLearningCopy(copy.minutes, { count: lesson.durationMinutes })}
+                <div key={stage} className="rounded-[26px] bg-card/30 border border-white/[0.045] p-3.5">
+                  <div className="flex items-start justify-between gap-3 px-1 pb-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-primary font-bold">
+                        {fillLearningCopy(copy.stageLabel, { stage })}
                       </p>
+                      <p className="text-[11px] text-muted-foreground mt-1">{copy.stageDescriptions[stage]}</p>
                     </div>
-                    <ChevronRight size={16} className="text-muted-foreground/35 flex-shrink-0" />
-                  </motion.div>
-                </Link>
+                    <span className="rounded-full bg-primary/[0.08] border border-primary/15 px-2.5 py-1 text-[9px] font-bold text-primary whitespace-nowrap">
+                      {stageCompleted} / {stageLessons.length}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {stageLessons.map((lesson, index) => {
+                      const done = Boolean(completed[lesson.id]);
+                      return (
+                        <Link key={lesson.id} href={`/learning/${lesson.id}`}>
+                          <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: Math.min(index * 0.025, 0.16) }}
+                            whileTap={{ scale: 0.99 }}
+                            className="rounded-[20px] bg-card/65 border border-white/[0.055] p-4 flex items-center gap-3"
+                          >
+                            <div className={`w-11 h-11 rounded-2xl grid place-items-center flex-shrink-0 border ${done ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-primary/[0.07] border-primary/14'}`}>
+                              {done ? <CheckCircle2 size={19} className="text-emerald-400" /> : <span className="text-xl">{lesson.icon}</span>}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] uppercase tracking-widest text-primary font-bold">{copy.topics[lesson.topic].title}</span>
+                                {done && <span className="text-[9px] text-emerald-400 font-semibold">{copy.completed}</span>}
+                              </div>
+                              <p className="font-medium text-[13px] text-foreground mt-1 truncate">{localizeLearningText(lesson.title, language)}</p>
+                              <p className="text-[10px] text-muted-foreground mt-1 inline-flex items-center gap-1">
+                                <Clock3 size={11} />
+                                {fillLearningCopy(copy.minutes, { count: lesson.durationMinutes })}
+                              </p>
+                            </div>
+                            <ChevronRight size={16} className="text-muted-foreground/35 flex-shrink-0" />
+                          </motion.div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </div>
