@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { format, isToday, isYesterday, isThisWeek, parseISO } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { enUS, ru } from 'date-fns/locale';
 import { useTastings, Tasting } from '@/hooks/useTastings';
 import { JournalTastingCard } from '@/components/journal/JournalTastingCard';
 import { JournalPreview } from '@/components/journal/JournalPreview';
@@ -28,6 +28,7 @@ import { tastingSearchText } from '@/lib/journal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useLanguage, type AppLanguage } from '@/contexts/LanguageContext';
 
 const DELETE_DELAY_MS = 5_000;
 const PAGE_SIZE = 36;
@@ -76,25 +77,26 @@ function toGenitiveName(name: string): string {
   return trimmed;
 }
 
-function groupTitle(date: Date): string {
-  if (isToday(date)) return 'Сегодня';
-  if (isYesterday(date)) return 'Вчера';
-  if (isThisWeek(date, { weekStartsOn: 1 })) return 'На этой неделе';
-  return format(date, 'LLLL yyyy', { locale: ru });
+function groupTitle(date: Date, language: AppLanguage): string {
+  if (isToday(date)) return language === 'ru' ? 'Сегодня' : 'Today';
+  if (isYesterday(date)) return language === 'ru' ? 'Вчера' : 'Yesterday';
+  if (isThisWeek(date, { weekStartsOn: 1 })) return language === 'ru' ? 'На этой неделе' : 'This week';
+  return format(date, 'LLLL yyyy', { locale: language === 'ru' ? ru : enUS });
 }
 
-function pluralizeChapters(value: number): string {
+function pluralizeChapters(value: number, language: AppLanguage): string {
+  if (language === 'en') return `${value} ${value === 1 ? 'chapter' : 'chapters'} of taste`;
   const modulo100 = value % 100;
   const modulo10 = value % 10;
-  if (modulo100 >= 11 && modulo100 <= 14) return `${value} глав`;
-  if (modulo10 === 1) return `${value} глава`;
-  if (modulo10 >= 2 && modulo10 <= 4) return `${value} главы`;
-  return `${value} глав`;
+  if (modulo100 >= 11 && modulo100 <= 14) return `${value} глав о вкусе`;
+  if (modulo10 === 1) return `${value} глава о вкусе`;
+  if (modulo10 >= 2 && modulo10 <= 4) return `${value} главы о вкусе`;
+  return `${value} глав о вкусе`;
 }
 
-function uniqueValues(values: Array<string | undefined>): string[] {
+function uniqueValues(values: Array<string | undefined>, locale: string): string[] {
   return [...new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)))]
-    .sort((left, right) => left.localeCompare(right, 'ru'));
+    .sort((left, right) => left.localeCompare(right, locale));
 }
 
 interface FilterGroupProps {
@@ -106,6 +108,7 @@ interface FilterGroupProps {
 }
 
 function FilterGroup({ icon, label, options, selected, onSelect }: FilterGroupProps) {
+  const { t } = useLanguage();
   return (
     <div className="cm-journal-filter-group">
       <div className="cm-journal-filter-group-title">
@@ -131,7 +134,7 @@ function FilterGroup({ icon, label, options, selected, onSelect }: FilterGroupPr
           })}
         </div>
       ) : (
-        <p className="cm-journal-filter-empty">Пока нет данных для этого фильтра</p>
+        <p className="cm-journal-filter-empty">{t('journal.noFilterData')}</p>
       )}
     </div>
   );
@@ -139,12 +142,13 @@ function FilterGroup({ icon, label, options, selected, onSelect }: FilterGroupPr
 
 export default function Home() {
   const [, navigate] = useLocation();
+  const { language, locale, t } = useLanguage();
   const { tastings, updateTasting, deleteTasting } = useTastings();
   const { user, loading: authLoading } = useAuth();
   const { profile } = useProfile();
   const [filters, setFilters] = useLocalStorage<JournalFilters>('coffeemind_journal_filters_v3', DEFAULT_FILTERS);
   const [query, setQuery] = useState('');
-  const deferredQuery = useDeferredValue(query.trim().toLocaleLowerCase('ru-RU'));
+  const deferredQuery = useDeferredValue(query.trim().toLocaleLowerCase(locale));
   const [showFilters, setShowFilters] = useState(false);
   const [preview, setPreview] = useState<Tasting | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Tasting | null>(null);
@@ -191,16 +195,16 @@ export default function Home() {
     if (!user) return '';
     const metadataName = typeof user.user_metadata?.name === 'string' ? user.user_metadata.name.trim() : '';
     const profileName = profile.name?.trim() || '';
-    const emailName = user.email?.split('@')[0] || 'пользователя';
+    const emailName = user.email?.split('@')[0] || (language === 'ru' ? 'пользователя' : 'user');
     return metadataName || (profileName && profileName !== 'Роман' ? profileName : '') || emailName;
-  }, [profile.name, user]);
-  const journalOwner = useMemo(() => toGenitiveName(nickname), [nickname]);
+  }, [language, profile.name, user]);
+  const journalOwner = useMemo(() => language === 'ru' ? toGenitiveName(nickname) : nickname, [language, nickname]);
 
   const filterOptions = useMemo(() => ({
-    countries: uniqueValues(tastings.map((tasting) => tasting.country)),
-    processings: uniqueValues(tastings.map((tasting) => tasting.processing || tasting.process)),
-    methods: uniqueValues(tastings.map((tasting) => tasting.brewMethod || tasting.brewingMethod)),
-  }), [tastings]);
+    countries: uniqueValues(tastings.map((tasting) => tasting.country), locale),
+    processings: uniqueValues(tastings.map((tasting) => tasting.processing || tasting.process), locale),
+    methods: uniqueValues(tastings.map((tasting) => tasting.brewMethod || tasting.brewingMethod), locale),
+  }), [locale, tastings]);
 
   const searchIndex = useMemo(() => tastings.map((tasting) => ({
     tasting,
@@ -244,13 +248,13 @@ export default function Home() {
   const grouped = useMemo(() => {
     const result: { title: string; items: Tasting[] }[] = [];
     visibleTastings.forEach((tasting) => {
-      const title = groupTitle(parseISO(tasting.createdAt));
+      const title = groupTitle(parseISO(tasting.createdAt), language);
       const last = result[result.length - 1];
       if (last?.title === title) last.items.push(tasting);
       else result.push({ title, items: [tasting] });
     });
     return result;
-  }, [visibleTastings]);
+  }, [language, visibleTastings]);
 
   const activeFilterCount = Number(filters.favorites)
     + Number(filters.highScore)
@@ -306,16 +310,16 @@ export default function Home() {
     <main className="cm-journal min-h-full pb-32 iphone-safe-top">
       <header className="cm-journal-header px-4 pt-3">
         <div>
-          <p className="cm-journal-eyebrow">Мой кофейный путь</p>
-          <h1>{user ? `Журнал ${journalOwner}` : 'Журнал'}</h1>
-          <p>{tastings.length ? `${pluralizeChapters(tastings.length)} о вкусе` : 'Первая глава ещё впереди'}</p>
+          <p className="cm-journal-eyebrow">{t('journal.eyebrow')}</p>
+          <h1>{user ? t('journal.ownerTitle', { name: journalOwner }) : t('journal.title')}</h1>
+          <p>{tastings.length ? pluralizeChapters(tastings.length, language) : t('journal.firstChapter')}</p>
         </div>
         <motion.button
           whileTap={{ scale: 0.88 }}
           type="button"
           className={`cm-journal-filter ${showFilters || hasActiveFilters ? 'is-active' : ''}`}
           onClick={() => setShowFilters((value) => !value)}
-          aria-label="Открыть фильтры"
+          aria-label={t('journal.openFilters')}
           aria-expanded={showFilters}
         >
           <Filter size={18} />
@@ -331,8 +335,8 @@ export default function Home() {
             className="mb-1 rounded-[24px] border border-primary/20 bg-card/75 p-4 shadow-sm backdrop-blur-xl"
           >
             <div className="mb-3">
-              <p className="text-sm font-semibold text-foreground">Сохрани записи на всех устройствах</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Создай аккаунт или войди, чтобы включить облачную синхронизацию.</p>
+              <p className="text-sm font-semibold text-foreground">{t('journal.authTitle')}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t('journal.authText')}</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <motion.button
@@ -342,7 +346,7 @@ export default function Home() {
                 className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-3 text-sm font-bold text-primary-foreground"
               >
                 <UserPlus size={17} />
-                Регистрация
+                {t('journal.signUp')}
               </motion.button>
               <motion.button
                 whileTap={{ scale: 0.97 }}
@@ -351,7 +355,7 @@ export default function Home() {
                 className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background/70 px-3 text-sm font-semibold text-foreground"
               >
                 <LogIn size={17} />
-                Войти
+                {t('journal.signIn')}
               </motion.button>
             </div>
           </motion.div>
@@ -364,24 +368,24 @@ export default function Home() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Страна, обработка, вкус, метод…"
-            aria-label="Поиск по журналу"
+            placeholder={t('journal.searchPlaceholder')}
+            aria-label={t('journal.searchLabel')}
           />
           {query ? (
-            <button type="button" onClick={() => setQuery('')} aria-label="Очистить поиск"><X size={17} /></button>
+            <button type="button" onClick={() => setQuery('')} aria-label={t('journal.clearSearch')}><X size={17} /></button>
           ) : (
             <SlidersHorizontal size={16} className="opacity-45" />
           )}
         </div>
 
         {tastings.length > 0 && (
-          <div className="cm-journal-quick-filters" aria-label="Быстрые фильтры">
+          <div className="cm-journal-quick-filters" aria-label={t('journal.quickFilters')}>
             <button
               type="button"
               className={!hasActiveFilters ? 'is-active' : ''}
               onClick={() => setFilters(DEFAULT_FILTERS)}
             >
-              Все
+              {t('journal.all')}
             </button>
             <button
               type="button"
@@ -390,7 +394,7 @@ export default function Home() {
               onClick={() => updateFilters({ favorites: !filters.favorites })}
             >
               <Heart size={14} fill={filters.favorites ? 'currentColor' : 'none'} />
-              Избранное
+              {t('journal.favorites')}
             </button>
             <button
               type="button"
@@ -408,7 +412,7 @@ export default function Home() {
               aria-expanded={showFilters}
             >
               <SlidersHorizontal size={14} />
-              Ещё
+              {t('journal.more')}
               {activeFilterCount > 0 && <span>{activeFilterCount}</span>}
             </button>
           </div>
@@ -425,17 +429,17 @@ export default function Home() {
             >
               <div className="cm-journal-filter-panel-head">
                 <div>
-                  <p>Точные фильтры</p>
-                  <span>{filtered.length} из {tastings.length}</span>
+                  <p>{t('journal.preciseFilters')}</p>
+                  <span>{filtered.length} {t('journal.of')} {tastings.length}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   {hasActiveFilters && (
                     <button type="button" onClick={() => setFilters(DEFAULT_FILTERS)} className="cm-journal-filter-reset">
                       <RotateCcw size={14} />
-                      Сбросить
+                      {t('journal.reset')}
                     </button>
                   )}
-                  <button type="button" onClick={() => setShowFilters(false)} className="cm-journal-filter-close" aria-label="Закрыть фильтры">
+                  <button type="button" onClick={() => setShowFilters(false)} className="cm-journal-filter-close" aria-label={t('journal.closeFilters')}>
                     <ChevronDown size={18} />
                   </button>
                 </div>
@@ -443,21 +447,21 @@ export default function Home() {
 
               <FilterGroup
                 icon={<Globe2 size={15} />}
-                label="Страна"
+                label={t('journal.country')}
                 options={filterOptions.countries}
                 selected={filters.country}
                 onSelect={(country) => updateFilters({ country })}
               />
               <FilterGroup
                 icon={<Leaf size={15} />}
-                label="Обработка"
+                label={t('journal.processing')}
                 options={filterOptions.processings}
                 selected={filters.processing}
                 onSelect={(processing) => updateFilters({ processing })}
               />
               <FilterGroup
                 icon={<Coffee size={15} />}
-                label="Метод"
+                label={t('journal.method')}
                 options={filterOptions.methods}
                 selected={filters.method}
                 onSelect={(method) => updateFilters({ method })}
@@ -478,23 +482,23 @@ export default function Home() {
       {tastings.length === 0 ? (
         <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="cm-journal-empty mx-4 mt-6">
           <div className="cm-journal-empty-icon"><Coffee size={27} /></div>
-          <p className="cm-journal-eyebrow">Пока здесь тихо</p>
-          <h2>Сохрани первую чашку</h2>
-          <p>Добавь первую дегустацию и начни собирать собственную историю вкуса.</p>
-          <button onClick={() => navigate('/add')} className="cm-primary-action mt-6"><Sparkles size={18} />Добавить дегустацию</button>
+          <p className="cm-journal-eyebrow">{t('journal.emptyEyebrow')}</p>
+          <h2>{t('journal.emptyTitle')}</h2>
+          <p>{t('journal.emptyText')}</p>
+          <button onClick={() => navigate('/add')} className="cm-primary-action mt-6"><Sparkles size={18} />{t('journal.addTasting')}</button>
         </motion.section>
       ) : filtered.length === 0 ? (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="cm-no-results mx-4 mt-7">
           <div className="cm-no-results-icon"><Search size={22} /></div>
-          <p>Совпадений нет</p>
-          <span>Измени запрос или убери часть фильтров.</span>
-          <button type="button" onClick={resetFilters}><RotateCcw size={14} />Сбросить поиск и фильтры</button>
+          <p>{t('journal.noResults')}</p>
+          <span>{t('journal.noResultsText')}</span>
+          <button type="button" onClick={resetFilters}><RotateCcw size={14} />{t('journal.resetSearch')}</button>
         </motion.div>
       ) : (
         <div className="px-4 mt-7 space-y-8">
           {hasSearchOrFilters && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="cm-journal-results-summary">
-              Найдено: <strong>{filtered.length}</strong>
+              {t('journal.found')} <strong>{filtered.length}</strong>
             </motion.div>
           )}
 
@@ -542,9 +546,9 @@ export default function Home() {
           {remainingCount > 0 && (
             <div ref={loadMoreRef} className="cm-journal-load-more">
               <button type="button" onClick={() => setVisibleLimit((current) => Math.min(current + PAGE_SIZE, filtered.length))}>
-                Показать ещё {Math.min(PAGE_SIZE, remainingCount)}
+                {t('journal.showMore', { count: Math.min(PAGE_SIZE, remainingCount) })}
               </button>
-              <span>Осталось {remainingCount}</span>
+              <span>{t('journal.remaining', { count: remainingCount })}</span>
             </div>
           )}
         </div>
@@ -562,10 +566,10 @@ export default function Home() {
             aria-live="polite"
           >
             <div className="min-w-0">
-              <strong>Дегустация удалена</strong>
-              <span>{pendingDelete.coffeeName || 'Без названия'}</span>
+              <strong>{t('journal.deleted')}</strong>
+              <span>{pendingDelete.coffeeName || t('journal.untitled')}</span>
             </div>
-            <button type="button" onClick={undoDelete}><Undo2 size={15} />Отменить</button>
+            <button type="button" onClick={undoDelete}><Undo2 size={15} />{t('journal.undo')}</button>
             <div className="cm-journal-undo-progress" />
           </motion.div>
         )}

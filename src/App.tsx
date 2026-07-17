@@ -23,11 +23,13 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { CloudSyncBridge } from '@/components/CloudSyncBridge';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { PageTransition } from '@/components/PageTransition';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 
 const queryClient = new QueryClient();
 
 function App() {
   return (
+    <LanguageProvider>
     <ThemeProvider>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -65,6 +67,7 @@ function App() {
       </AuthProvider>
     </QueryClientProvider>
     </ThemeProvider>
+    </LanguageProvider>
   );
 }
 

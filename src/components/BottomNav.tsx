@@ -2,18 +2,20 @@ import { Link, useLocation } from 'wouter';
 import { Home, Dna, User, Plus, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const NAV_ITEMS = [
-  { href: '/', icon: Home, label: 'Журнал' },
-  { href: '/stats', icon: Dna, label: 'DNA' },
+  { href: '/', icon: Home, labelKey: 'nav.journal' as const },
+  { href: '/stats', icon: Dna, labelKey: 'nav.dna' as const },
   null,
-  { href: '/books', icon: BookOpen, label: 'Книги' },
-  { href: '/profile', icon: User, label: 'Профиль' },
+  { href: '/books', icon: BookOpen, labelKey: 'nav.books' as const },
+  { href: '/profile', icon: User, labelKey: 'nav.profile' as const },
 ];
 
 export function BottomNav() {
   const [location] = useLocation();
   const hidden = useScrollDirection();
+  const { t } = useLanguage();
   if (location === '/add' || location.startsWith('/tasting/') || location.startsWith('/coach/') || ['/settings','/install','/welcome','/share','/backup','/account','/admin'].includes(location)) return null;
 
   return (
@@ -29,7 +31,7 @@ export function BottomNav() {
             {NAV_ITEMS.map((item) => {
               if (!item) return (
                 <div key="add" className="flex justify-center">
-                  <Link href="/add">
+                  <Link href="/add" aria-label={t('nav.add')}>
                     <motion.div
                       whileTap={{ scale: 0.84, rotate: 4 }}
                       whileHover={{ y: -3 }}
@@ -57,7 +59,7 @@ export function BottomNav() {
                     <motion.div animate={{ y: active ? -1 : 0, scale: active ? 1.06 : 1 }}>
                       <Icon size={21} strokeWidth={active ? 2.4 : 1.7} className={`relative z-10 transition-colors ${active ? 'text-primary' : 'text-muted-foreground'}`} />
                     </motion.div>
-                    <span className={`relative z-10 text-[9px] font-semibold ${active ? 'text-primary' : 'text-muted-foreground'}`}>{item.label}</span>
+                    <span className={`relative z-10 text-[9px] font-semibold ${active ? 'text-primary' : 'text-muted-foreground'}`}>{t(item.labelKey)}</span>
                   </motion.div>
                 </Link>
               );

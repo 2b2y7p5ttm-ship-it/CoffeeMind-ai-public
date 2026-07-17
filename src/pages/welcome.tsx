@@ -1,11 +1,13 @@
 import { motion } from 'framer-motion';
-import { BookOpen, ChevronLeft, Coffee, Database, Plus, ShieldCheck, Smartphone, Sparkles, Users } from 'lucide-react';
+import { ArrowRight, BookOpen, ChevronLeft, Cloud, Coffee, LogIn, ShieldCheck, Sparkles, UserPlus } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
-function Step({ icon: Icon, title, text }: { icon: React.ElementType; title: string; text: string }) {
+function Benefit({ icon: Icon, title, text }: { icon: React.ElementType; title: string; text: string }) {
   return (
-    <div className="rounded-[24px] bg-card/65 border border-white/[0.07] p-4 flex gap-3">
-      <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+    <div className="rounded-[22px] bg-card/72 border border-border/70 p-4 flex gap-3 shadow-sm">
+      <div className="w-10 h-10 rounded-2xl bg-primary/12 border border-primary/18 text-primary flex items-center justify-center flex-shrink-0">
         <Icon size={18} />
       </div>
       <div>
@@ -18,8 +20,10 @@ function Step({ icon: Icon, title, text }: { icon: React.ElementType; title: str
 
 export default function Welcome() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const { t } = useLanguage();
 
-  const start = () => {
+  const continueWithoutAccount = () => {
     localStorage.setItem('coffeemind_welcome_seen', 'true');
     setLocation('/add');
   };
@@ -29,70 +33,87 @@ export default function Welcome() {
       <header className="px-4 iphone-safe-top pb-5">
         <button
           onClick={() => setLocation('/')}
-          className="w-10 h-10 mb-5 rounded-full bg-card/60 border border-white/[0.08] flex items-center justify-center text-muted-foreground"
-          aria-label="Назад"
+          className="w-10 h-10 mb-5 rounded-full bg-card/80 border border-border/70 flex items-center justify-center text-muted-foreground shadow-sm"
+          aria-label={t('common.back')}
         >
           <ChevronLeft size={20} />
         </button>
 
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 rounded-full px-3 py-1.5 mb-4">
             <Sparkles size={14} />
-            <span className="text-[10px] uppercase tracking-widest font-bold">Public Launch</span>
+            <span className="text-[10px] uppercase tracking-widest font-bold">CoffeeMind</span>
           </div>
-          <h1 className="font-serif text-[2.55rem] leading-[0.93] text-foreground mb-4">CoffeeMind для каждого дегустатора</h1>
-          <p className="text-muted-foreground text-[14px] leading-relaxed">
-            Это личное приложение для кофе, книг и развития вкуса. Ты можешь поделиться ссылкой — у каждого человека будет свой отдельный журнал на его устройстве.
-          </p>
+          <h1 className="font-serif text-[2.55rem] leading-[0.95] text-foreground mb-4">{t('welcome.hero')}</h1>
+          <p className="text-muted-foreground text-[14px] leading-relaxed max-w-[360px]">{t('welcome.subtitle')}</p>
         </motion.div>
       </header>
 
       <main className="px-4 space-y-4">
-        <section className="rounded-[30px] bg-primary/[0.085] border border-primary/20 p-5">
-          <div className="grid grid-cols-3 gap-3 mb-5">
-            <div className="rounded-[20px] bg-background/50 border border-white/[0.06] p-4 text-center">
+        <motion.section
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08, duration: 0.45 }}
+          className="rounded-[30px] bg-primary/[0.09] border border-primary/20 p-5 overflow-hidden relative"
+        >
+          <div className="absolute -right-12 -top-16 w-40 h-40 rounded-full bg-primary/10 blur-2xl" />
+          <div className="grid grid-cols-3 gap-3 mb-5 relative">
+            <div className="rounded-[20px] bg-background/70 border border-border/60 p-4 text-center">
               <Coffee size={22} className="text-primary mx-auto mb-2" />
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold">Кофе</p>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">{t('welcome.coffee')}</p>
             </div>
-            <div className="rounded-[20px] bg-background/50 border border-white/[0.06] p-4 text-center">
+            <div className="rounded-[20px] bg-background/70 border border-border/60 p-4 text-center">
               <BookOpen size={22} className="text-primary mx-auto mb-2" />
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold">Книги</p>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">{t('welcome.books')}</p>
             </div>
-            <div className="rounded-[20px] bg-background/50 border border-white/[0.06] p-4 text-center">
+            <div className="rounded-[20px] bg-background/70 border border-border/60 p-4 text-center">
               <Sparkles size={22} className="text-primary mx-auto mb-2" />
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold">AI Coach</p>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">DNA</p>
             </div>
           </div>
-          <p className="text-[14px] text-foreground leading-relaxed">
-            В публичной версии нет сценариев для роликов. Только журнал дегустаций, книжные оценки, Taste DNA и персональные заметки.
-          </p>
-        </section>
+          <p className="text-[14px] text-foreground leading-relaxed relative">{t('welcome.accountText')}</p>
+        </motion.section>
 
-        <Step icon={Users} title="У каждого свой журнал" text="CoffeeMind хранит записи в браузере конкретного пользователя. Твои данные не видят другие люди, которым ты отправишь ссылку." />
-        <Step icon={Database} title="Локальное хранение" text="Дегустации, книги и профиль сохраняются на устройстве. Для переноса данных есть Data Vault: экспорт и импорт JSON." />
-        <Step icon={ShieldCheck} title="Без аккаунта на старте" text="Версия 2.2 готова к публичной ссылке. Аккаунты и облачная синхронизация станут следующим большим этапом." />
-        <Step icon={Smartphone} title="Установка на iPhone" text="Через Safari пользователь может добавить CoffeeMind на экран Домой и открыть его как отдельное приложение." />
+        <Benefit icon={Cloud} title={t('welcome.syncTitle')} text={t('welcome.syncText')} />
+        <Benefit icon={ShieldCheck} title={t('welcome.privacyTitle')} text={t('welcome.privacyText')} />
 
-        <div className="grid grid-cols-1 gap-3 pt-2">
-          <button
-            onClick={start}
-            className="h-14 rounded-full bg-primary text-primary-foreground text-[14px] font-bold flex items-center justify-center gap-2 shadow-[0_16px_36px_rgba(217,163,95,0.28)]"
-          >
-            <Plus size={18} />
-            Начать с первой дегустации
-          </button>
-          <Link href="/books">
-            <button className="w-full h-12 rounded-full bg-white/[0.06] border border-white/[0.08] text-foreground text-[13px] font-semibold flex items-center justify-center gap-2">
-              <BookOpen size={16} />
-              Открыть книжный журнал
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18, duration: 0.45 }}
+          className="pt-2 space-y-3"
+        >
+          {user ? (
+            <button
+              onClick={() => setLocation('/')}
+              className="w-full h-14 rounded-2xl bg-primary text-primary-foreground text-[14px] font-bold flex items-center justify-center gap-2 shadow-[0_16px_36px_rgba(217,163,95,0.24)]"
+            >
+              {t('welcome.goJournal')}
+              <ArrowRight size={18} />
             </button>
-          </Link>
-          <Link href="/share">
-            <button className="w-full h-12 rounded-full bg-white/[0.035] border border-white/[0.07] text-muted-foreground text-[13px] font-semibold">
-              Поделиться приложением
-            </button>
-          </Link>
-        </div>
+          ) : (
+            <>
+              <Link href="/account?mode=signup&from=welcome">
+                <button className="w-full h-14 rounded-2xl bg-primary text-primary-foreground text-[14px] font-bold flex items-center justify-center gap-2 shadow-[0_16px_36px_rgba(217,163,95,0.24)]">
+                  <UserPlus size={18} />
+                  {t('welcome.createAccount')}
+                </button>
+              </Link>
+              <Link href="/account?mode=login&from=welcome">
+                <button className="w-full h-13 rounded-2xl bg-card border border-border/80 text-foreground text-[14px] font-semibold flex items-center justify-center gap-2 shadow-sm">
+                  <LogIn size={17} />
+                  {t('welcome.signIn')}
+                </button>
+              </Link>
+              <button
+                onClick={continueWithoutAccount}
+                className="w-full min-h-11 px-4 rounded-2xl text-muted-foreground text-[13px] font-semibold"
+              >
+                {t('welcome.continueGuest')}
+              </button>
+            </>
+          )}
+        </motion.div>
       </main>
     </div>
   );

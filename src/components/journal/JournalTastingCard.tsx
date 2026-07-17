@@ -4,6 +4,7 @@ import { BookOpen, ChevronRight, Heart, Pencil, Share2, Trash2 } from 'lucide-re
 import { Tasting } from '@/hooks/useTastings';
 import { countryToFlag } from '@/lib/coffeeUtils';
 import { getTasteTone, getTastingDescriptors } from '@/lib/journal';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Props {
   tasting: Tasting;
@@ -13,9 +14,25 @@ interface Props {
   onFavorite: () => void;
   onShare: () => void;
   onPreview: () => void;
+  searchQuery?: string;
 }
 
-export function JournalTastingCard({ tasting, onOpen, onEdit, onDelete, onFavorite, onShare, onPreview }: Props) {
+function highlightText(text: string, query: string | undefined, locale: string) {
+  const needle = query?.trim();
+  if (!needle) return text;
+  const index = text.toLocaleLowerCase(locale).indexOf(needle.toLocaleLowerCase(locale));
+  if (index < 0) return text;
+  return (
+    <>
+      {text.slice(0, index)}
+      <mark className="cm-search-mark">{text.slice(index, index + needle.length)}</mark>
+      {text.slice(index + needle.length)}
+    </>
+  );
+}
+
+export function JournalTastingCard({ tasting, onOpen, onEdit, onDelete, onFavorite, onShare, onPreview, searchQuery }: Props) {
+  const { locale, t } = useLanguage();
   const x = useMotionValue(0);
   const leftOpacity = useTransform(x, [0, 62], [0, 1]);
   const rightOpacity = useTransform(x, [-62, 0], [1, 0]);
@@ -28,6 +45,8 @@ export function JournalTastingCard({ tasting, onOpen, onEdit, onDelete, onFavori
   const processing = tasting.processing || tasting.process;
   const method = tasting.brewMethod || tasting.brewingMethod;
   const flag = countryToFlag(tasting.country);
+  const origin = [tasting.country, processing].filter(Boolean).join(' · ') || t('journal.chapterFallback');
+  const secondary = [tasting.roaster, tasting.region].filter(Boolean).join(' · ');
 
   const clearHold = () => {
     if (holdTimer.current) window.clearTimeout(holdTimer.current);
@@ -52,12 +71,12 @@ export function JournalTastingCard({ tasting, onOpen, onEdit, onDelete, onFavori
   return (
     <div className={`cm-journal-swipe cm-tone-${tone}`}>
       <motion.div style={{ opacity: leftOpacity }} className="cm-swipe-actions cm-swipe-actions-left">
-        <button onClick={() => runAction(onFavorite)} aria-label="Избранное"><Heart size={18} fill={tasting.favorite ? 'currentColor' : 'none'} /></button>
-        <button onClick={() => runAction(onShare)} aria-label="Поделиться"><Share2 size={18} /></button>
+        <button onClick={() => runAction(onFavorite)} aria-label={t('journal.actionFavorite')}><Heart size={18} fill={tasting.favorite ? 'currentColor' : 'none'} /></button>
+        <button onClick={() => runAction(onShare)} aria-label={t('journal.actionShare')}><Share2 size={18} /></button>
       </motion.div>
       <motion.div style={{ opacity: rightOpacity }} className="cm-swipe-actions cm-swipe-actions-right">
-        <button onClick={() => runAction(onEdit)} aria-label="Редактировать"><Pencil size={18} /></button>
-        <button onClick={() => runAction(onDelete)} className="cm-delete-action" aria-label="Удалить"><Trash2 size={18} /></button>
+        <button onClick={() => runAction(onEdit)} aria-label={t('journal.actionEdit')}><Pencil size={18} /></button>
+        <button onClick={() => runAction(onDelete)} className="cm-delete-action" aria-label={t('journal.actionDelete')}><Trash2 size={18} /></button>
       </motion.div>
 
       <motion.article
@@ -69,9 +88,6 @@ export function JournalTastingCard({ tasting, onOpen, onEdit, onDelete, onFavori
         onDragStart={() => { moved.current = true; suppressClick.current = true; clearHold(); }}
         onDragEnd={(_, info) => {
           clearHold();
-
-          // Свайп только открывает панель действий.
-          // Никакое действие не запускается автоматически.
           let destination = 0;
           let side: 'left' | 'right' | null = null;
 
@@ -117,19 +133,19 @@ export function JournalTastingCard({ tasting, onOpen, onEdit, onDelete, onFavori
           <div className="min-w-0">
             <div className="cm-journal-origin">
               {flag && <span>{flag}</span>}
-              <span>{[tasting.country, processing].filter(Boolean).join(' · ') || 'Кофейная глава'}</span>
+              <span>{highlightText(origin, searchQuery, locale)}</span>
             </div>
-            <h3>{tasting.coffeeName || 'Без названия'}</h3>
-            <p>{[tasting.roaster, tasting.region].filter(Boolean).join(' · ')}</p>
+            <h3>{highlightText(tasting.coffeeName || t('journal.untitled'), searchQuery, locale)}</h3>
+            <p>{highlightText(secondary, searchQuery, locale)}</p>
           </div>
           <div className="cm-journal-score"><strong>{Number(tasting.overallScore || 0).toFixed(1).replace('.0', '')}</strong><span>/ 100</span></div>
         </div>
 
-        {descriptors.length > 0 && <div className="cm-journal-chips">{descriptors.map((item) => <span key={item}>{item}</span>)}</div>}
+        {descriptors.length > 0 && <div className="cm-journal-chips">{descriptors.map((item) => <span key={item}>{highlightText(item, searchQuery, locale)}</span>)}</div>}
 
         <div className="cm-journal-profile" aria-hidden="true">
-          {[tasting.acidity, tasting.sweetness, tasting.body, tasting.aftertaste, tasting.balance].map((value, i) => (
-            <span key={i} style={{ height: `${Math.max(18, Number(value || 0) * 8)}%` }} />
+          {[tasting.acidity, tasting.sweetness, tasting.body, tasting.aftertaste, tasting.balance].map((value, index) => (
+            <span key={index} style={{ height: `${Math.max(18, Number(value || 0) * 8)}%` }} />
           ))}
         </div>
 
