@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
-import { AlertCircle, Brain, Check, CheckCircle2, Cloud, CloudOff, Coffee, Edit2, Flame, Globe, Loader2, LogIn, LogOut, Mail, Settings, Star, X } from 'lucide-react';
+import { AlertCircle, Award, Brain, Check, CheckCircle2, ChevronRight, Cloud, CloudOff, Coffee, Edit2, Flame, Globe, Loader2, LogIn, LogOut, Mail, Settings, Star, Trophy, X } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useTastings, Tasting } from '@/hooks/useTastings';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { resolveDisplayName } from '@/lib/profileIdentity';
 import { useCloudSync } from '@/hooks/useCloudSync';
+import { useAchievements } from '@/hooks/useAchievements';
 
 function getInitials(name: string): string {
   return name.split(' ').map((word) => word[0]).join('').toUpperCase().slice(0, 2);
@@ -97,18 +98,6 @@ function getLevel(count: number) {
   return [...LEVELS].reverse().find((level) => count >= level.min) ?? LEVELS[0];
 }
 
-type AchievementId = 'first' | 'five' | 'world' | 'high' | 'perfect' | 'method' | 'natural' | 'century';
-
-const ACHIEVEMENTS: Array<{ id: AchievementId; icon: string; check: (tastings: Tasting[]) => boolean }> = [
-  { id: 'first', icon: '☕', check: (tastings) => tastings.length >= 1 },
-  { id: 'five', icon: '🌱', check: (tastings) => tastings.length >= 5 },
-  { id: 'world', icon: '🌍', check: (tastings) => new Set(tastings.filter((item) => item.country).map((item) => canonicalizeCountry(item.country))).size >= 5 },
-  { id: 'high', icon: '⭐', check: (tastings) => tastings.some((item) => item.overallScore >= 90) },
-  { id: 'perfect', icon: '💎', check: (tastings) => tastings.some((item) => item.overallScore >= 95) },
-  { id: 'method', icon: '⚗️', check: (tastings) => new Set(tastings.map(getBrewMethod).filter(Boolean)).size >= 4 },
-  { id: 'natural', icon: '🫐', check: (tastings) => tastings.filter((item) => /natural|натурал/i.test(getProcessing(item))).length >= 3 },
-  { id: 'century', icon: '💯', check: (tastings) => tastings.length >= 100 },
-];
 
 export default function Profile() {
   const [, setLocation] = useLocation();
@@ -119,6 +108,7 @@ export default function Profile() {
   const { language } = useLanguage();
   const { copy } = useSectionCopy();
   const profileCopy = copy.profile;
+  const achievementCopy = copy.achievements;
   const displayName = useMemo(() => resolveDisplayName({
     profileName: profile.name,
     metadataName: typeof user?.user_metadata?.name === 'string' ? user.user_metadata.name : '',
@@ -212,7 +202,7 @@ export default function Profile() {
   const tasteDna = calcTasteDna(tastings);
   const maxTasteHits = Math.max(...tasteDna.map((item) => item.hits), 1);
   const dominantTaste = tasteDna.find((item) => item.hits > 0);
-  const unlocked = ACHIEVEMENTS.filter((achievement) => achievement.check(tastings));
+  const { achievements, unlockedCount, totalCount, totalPoints } = useAchievements();
 
   return (
     <div className="px-4 iphone-safe-top pb-28 min-h-full">
@@ -548,36 +538,70 @@ export default function Profile() {
         </div>
       )}
 
-      <div>
-        <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50 mb-3">
-          {profileCopy.achievements}
-          {unlocked.length > 0 && <span className="ml-2 text-primary">{unlocked.length}/{ACHIEVEMENTS.length}</span>}
-        </p>
-        <div className="grid grid-cols-4 gap-2.5">
-          {ACHIEVEMENTS.map((achievement) => {
-            const isUnlocked = achievement.check(tastings);
-            const achievementCopy = profileCopy.achievementsList[achievement.id];
-            return (
-              <motion.div
-                key={achievement.id}
-                title={achievementCopy.description}
-                whileTap={isUnlocked ? { scale: 0.95 } : undefined}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-center ${
-                  isUnlocked
-                    ? 'bg-card/80 border-white/[0.08]'
-                    : 'bg-card/20 border-white/[0.03] opacity-35'
-                }`}
-              >
-                <span className="text-2xl">{achievement.icon}</span>
-                <span className="text-[9px] font-semibold text-foreground/80 leading-tight">{achievementCopy.title}</span>
-              </motion.div>
-            );
-          })}
+      <section>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50">
+            {profileCopy.achievements}
+            <span className="ml-2 text-primary">{unlockedCount}/{totalCount}</span>
+          </p>
+          <Link href="/achievements">
+            <motion.span whileTap={{ scale: 0.96 }} className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary">
+              {achievementCopy.viewAll}
+              <ChevronRight size={13} />
+            </motion.span>
+          </Link>
         </div>
-      </div>
+
+        <Link href="/achievements">
+          <motion.div
+            whileTap={{ scale: 0.985 }}
+            className="relative overflow-hidden rounded-[24px] bg-card/65 border border-white/[0.06] p-4"
+          >
+            <div className="absolute -right-5 -top-8 text-[86px] opacity-[0.05]">🏆</div>
+            <div className="relative flex items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-primary/12 border border-primary/22 grid place-items-center">
+                  <Trophy size={19} className="text-primary" />
+                </div>
+                <div>
+                  <p className="font-serif text-lg font-semibold text-foreground">{achievementCopy.summaryTitle}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{unlockedCount} / {totalCount} · {achievementCopy.unlocked}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="inline-flex items-center gap-1 text-primary font-bold text-sm">
+                  <Award size={14} />
+                  {totalPoints}
+                </div>
+                <p className="text-[9px] uppercase tracking-widest text-muted-foreground/50 mt-0.5">{achievementCopy.points}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2.5 relative">
+              {achievements.slice(0, 4).map((achievement) => {
+                const itemCopy = achievementCopy.items[achievement.id];
+                return (
+                  <div
+                    key={achievement.id}
+                    title={itemCopy.description}
+                    className={`flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border text-center ${
+                      achievement.unlocked
+                        ? 'bg-primary/[0.07] border-primary/18'
+                        : 'bg-card/20 border-white/[0.03] opacity-35 grayscale'
+                    }`}
+                  >
+                    <span className="text-2xl">{achievement.icon}</span>
+                    <span className="text-[9px] font-semibold text-foreground/80 leading-tight line-clamp-2">{itemCopy.title}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </Link>
+      </section>
 
       <div className="mt-10 text-center">
-        <p className="text-[10px] text-muted-foreground/25 font-medium tracking-widest uppercase">CoffeeMind AI · v1.4</p>
+        <p className="text-[10px] text-muted-foreground/25 font-medium tracking-widest uppercase">CoffeeMind AI · v1.5</p>
       </div>
 
       <AnimatePresence>

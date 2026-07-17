@@ -28,6 +28,7 @@ import { useTheme, type ThemeMode } from '@/contexts/ThemeContext';
 import { useLanguage, type LanguageMode } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveDisplayName } from '@/lib/profileIdentity';
+import { ACHIEVEMENTS_STORAGE_KEY } from '@/hooks/useAchievements';
 
 function Row({
   icon: Icon,
@@ -111,6 +112,14 @@ export default function Settings() {
       tastings,
       profile,
       books,
+      achievements: (() => {
+        try {
+          const raw = localStorage.getItem(ACHIEVEMENTS_STORAGE_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch {
+          return null;
+        }
+      })(),
       exportedAt: new Date().toISOString(),
       version: '2.4',
     };
@@ -129,6 +138,7 @@ export default function Settings() {
     localStorage.removeItem('coffee_journal_tastings');
     localStorage.removeItem('coffee_journal_profile');
     localStorage.removeItem('coffeemind_book_ratings');
+    localStorage.removeItem(ACHIEVEMENTS_STORAGE_KEY);
     window.location.reload();
   };
 
