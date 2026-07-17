@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   BarChart3,
@@ -26,6 +26,8 @@ import { Input } from '@/components/ui/input';
 import { useAdminAccess } from '@/hooks/useAdminAccess';
 import { useTheme, type ThemeMode } from '@/contexts/ThemeContext';
 import { useLanguage, type LanguageMode } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { resolveDisplayName } from '@/lib/profileIdentity';
 
 function Row({
   icon: Icon,
@@ -78,16 +80,29 @@ export default function Settings() {
   const { profile, setProfile } = useProfile();
   const { tastings } = useTastings();
   const { books } = useBooks();
+  const { user } = useAuth();
   const [editingName, setEditingName] = useState(false);
-  const [name, setName] = useState(profile.name);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const { isAdmin } = useAdminAccess();
   const { mode, setMode } = useTheme();
-  const { mode: languageMode, setMode: setLanguageMode, t } = useLanguage();
+  const { mode: languageMode, language, setMode: setLanguageMode, t } = useLanguage();
+  const displayName = useMemo(() => resolveDisplayName({
+    profileName: profile.name,
+    metadataName: typeof user?.user_metadata?.name === 'string' ? user.user_metadata.name : '',
+    email: user?.email,
+    language,
+    authenticated: Boolean(user),
+  }), [language, profile.name, user]);
+  const [name, setName] = useState(displayName);
+
+  useEffect(() => {
+    if (!editingName) setName(displayName);
+  }, [displayName, editingName]);
 
   const handleSaveName = () => {
-    if (name.trim()) setProfile({ ...profile, name: name.trim() });
-    else setName(profile.name);
+    const nextName = name.trim();
+    if (nextName) setProfile({ ...profile, name: nextName });
+    else setName(displayName);
     setEditingName(false);
   };
 
@@ -168,9 +183,9 @@ export default function Settings() {
           ) : (
             <Row
               icon={User}
-              label={profile.name}
+              label={displayName}
               sublabel={t('settings.tapName')}
-              onClick={() => setEditingName(true)}
+              onClick={() => { setName(displayName); setEditingName(true); }}
             />
           )}
         </Section>

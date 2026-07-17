@@ -7,6 +7,8 @@ import { useCloudSync } from '@/hooks/useCloudSync';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { TranslationKey } from '@/lib/i18n';
+import { useProfile } from '@/hooks/useProfile';
+import { emailNickname, resolveDisplayName } from '@/lib/profileIdentity';
 
 function friendlyError(message: string, translate: (key: TranslationKey) => string): string {
   const normalized = message.toLowerCase();
@@ -20,8 +22,9 @@ function friendlyError(message: string, translate: (key: TranslationKey) => stri
 export default function Account() {
   const [, setLocation] = useLocation();
   const { configured, user, loading, signIn, signUp, signOut } = useAuth();
+  const { profile, setProfile } = useProfile();
   const { status, lastError } = useCloudSync();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const initialMode = useMemo<'login' | 'signup'>(() => {
     const requested = new URLSearchParams(window.location.search).get('mode');
     return requested === 'signup' ? 'signup' : 'login';
@@ -42,7 +45,9 @@ export default function Account() {
     setMessage(null);
     try {
       if (mode === 'signup') {
-        const result = await signUp(email.trim(), password, name.trim() || 'CoffeeMind User');
+        const submittedName = name.trim() || emailNickname(email) || (language === 'ru' ? 'Пользователь CoffeeMind' : 'CoffeeMind User');
+        const result = await signUp(email.trim(), password, submittedName);
+        setProfile((current) => ({ ...current, name: submittedName }));
         setMessage(result.needsConfirmation ? t('account.signupConfirmation') : t('account.signupSuccess'));
       } else {
         await signIn(email.trim(), password);
@@ -67,6 +72,14 @@ export default function Account() {
       setBusy(false);
     }
   };
+
+  const displayName = useMemo(() => resolveDisplayName({
+    profileName: profile.name,
+    metadataName: typeof user?.user_metadata?.name === 'string' ? user.user_metadata.name : '',
+    email: user?.email,
+    language,
+    authenticated: Boolean(user),
+  }), [language, profile.name, user]);
 
   const statusLabel = status === 'synced'
     ? t('account.synced')
@@ -117,7 +130,8 @@ export default function Account() {
               </div>
               <div className="min-w-0">
                 <p className="text-[11px] text-muted-foreground">{t('account.accountLabel')}</p>
-                <p className="font-medium truncate">{user.email}</p>
+                <p className="font-medium truncate">{displayName}</p>
+                <p className="text-[12px] text-muted-foreground truncate mt-0.5">{user.email}</p>
               </div>
             </div>
           </div>
@@ -172,7 +186,7 @@ export default function Account() {
                 </div>
               )}
               <div>
-                <label className="text-[11px] text-muted-foreground ml-1 mb-1.5 block">Email</label>
+                <label className="text-[11px] text-muted-foreground ml-1 mb-1.5 block">{t('account.email')}</label>
                 <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" placeholder="name@example.com" className="h-12 rounded-2xl bg-background" />
               </div>
               <div>

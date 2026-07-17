@@ -32,6 +32,7 @@ import { useLanguage, type AppLanguage } from '@/contexts/LanguageContext';
 import { localizeProcessing } from '@/lib/processingI18n';
 import { localizeBrewMethod } from '@/lib/brewMethodI18n';
 import { canonicalizeCountry, localizeCountry, localizeVariety } from '@/lib/coffeeReferenceI18n';
+import { resolveDisplayName, toRussianGenitiveName } from '@/lib/profileIdentity';
 
 const DELETE_DELAY_MS = 5_000;
 const PAGE_SIZE = 36;
@@ -52,33 +53,6 @@ const DEFAULT_FILTERS: JournalFilters = {
   processing: '',
   method: '',
 };
-
-function toGenitiveName(name: string): string {
-  const trimmed = name.trim();
-  if (!trimmed) return '';
-
-  const lower = trimmed.toLocaleLowerCase('ru-RU');
-
-  const irregular: Record<string, string> = {
-    павел: 'Павла',
-    лев: 'Льва',
-    пётр: 'Петра',
-    петр: 'Петра',
-    илля: 'Ильи',
-  };
-  if (irregular[lower]) return irregular[lower];
-
-  const last = trimmed.slice(-1);
-  const stem = trimmed.slice(0, -1);
-
-  if (last === 'а' || last === 'А') return `${stem}ы`;
-  if (last === 'я' || last === 'Я') return `${stem}и`;
-  if (last === 'й' || last === 'Й') return `${stem}я`;
-  if (last === 'ь' || last === 'Ь') return `${stem}я`;
-  if (/[бвгджзклмнпрстфхцчшщБВГДЖЗКЛМНПРСТФХЦЧШЩ]$/.test(trimmed)) return `${trimmed}а`;
-
-  return trimmed;
-}
 
 function groupTitle(date: Date, language: AppLanguage): string {
   if (isToday(date)) return language === 'ru' ? 'Сегодня' : 'Today';
@@ -197,12 +171,15 @@ export default function Home() {
 
   const nickname = useMemo(() => {
     if (!user) return '';
-    const metadataName = typeof user.user_metadata?.name === 'string' ? user.user_metadata.name.trim() : '';
-    const profileName = profile.name?.trim() || '';
-    const emailName = user.email?.split('@')[0] || (language === 'ru' ? 'пользователя' : 'user');
-    return metadataName || (profileName && profileName !== 'Роман' ? profileName : '') || emailName;
+    return resolveDisplayName({
+      profileName: profile.name,
+      metadataName: typeof user.user_metadata?.name === 'string' ? user.user_metadata.name : '',
+      email: user.email,
+      language,
+      authenticated: true,
+    });
   }, [language, profile.name, user]);
-  const journalOwner = useMemo(() => language === 'ru' ? toGenitiveName(nickname) : nickname, [language, nickname]);
+  const journalOwner = useMemo(() => language === 'ru' ? toRussianGenitiveName(nickname) : nickname, [language, nickname]);
 
   const filterOptions = useMemo(() => ({
     countries: uniqueValues(tastings.map((tasting) => canonicalizeCountry(tasting.country)), locale)

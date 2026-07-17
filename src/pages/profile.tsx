@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 import { Edit2, Check, Settings, Star, Flame, Globe, Coffee, Brain } from 'lucide-react';
@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input';
 import { FLAVOR_WHEEL } from '@/lib/coffeeUtils';
 import { fillSectionCopy, useSectionCopy } from '@/lib/sectionI18n';
 import { canonicalizeCountry } from '@/lib/coffeeReferenceI18n';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { resolveDisplayName } from '@/lib/profileIdentity';
 
 function getInitials(name: string): string {
   return name.split(' ').map((word) => word[0]).join('').toUpperCase().slice(0, 2);
@@ -109,14 +112,28 @@ const ACHIEVEMENTS: Array<{ id: AchievementId; icon: string; check: (tastings: T
 export default function Profile() {
   const { profile, setProfile } = useProfile();
   const { tastings } = useTastings();
+  const { user } = useAuth();
+  const { language } = useLanguage();
   const { copy } = useSectionCopy();
   const profileCopy = copy.profile;
+  const displayName = useMemo(() => resolveDisplayName({
+    profileName: profile.name,
+    metadataName: typeof user?.user_metadata?.name === 'string' ? user.user_metadata.name : '',
+    email: user?.email,
+    language,
+    authenticated: Boolean(user),
+  }), [language, profile.name, user]);
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(profile.name);
+  const [name, setName] = useState(displayName);
+
+  useEffect(() => {
+    if (!isEditing) setName(displayName);
+  }, [displayName, isEditing]);
 
   const handleSave = () => {
-    if (name.trim()) setProfile({ ...profile, name: name.trim() });
-    else setName(profile.name);
+    const nextName = name.trim();
+    if (nextName) setProfile({ ...profile, name: nextName });
+    else setName(displayName);
     setIsEditing(false);
   };
 
@@ -163,7 +180,7 @@ export default function Profile() {
           className="w-24 h-24 rounded-full flex items-center justify-center font-bold text-2xl text-primary-foreground shadow-[0_0_40px_rgba(217,163,95,0.2)] mb-4 relative"
           style={{ background: `radial-gradient(circle at 35% 35%, ${profile.avatarColor || '#D9A35F'}cc, ${profile.avatarColor || '#D9A35F'})` }}
         >
-          {getInitials(profile.name)}
+          {getInitials(displayName)}
           <div className="absolute -bottom-1 -right-1 bg-card border border-white/10 rounded-full w-9 h-9 flex items-center justify-center text-lg shadow-lg">
             {level.emoji}
           </div>
@@ -188,7 +205,7 @@ export default function Profile() {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <h1 className="font-serif text-[1.9rem] font-medium text-foreground">{profile.name}</h1>
+            <h1 className="font-serif text-[1.9rem] font-medium text-foreground">{displayName}</h1>
             <button
               onClick={() => setIsEditing(true)}
               aria-label={profileCopy.editName}

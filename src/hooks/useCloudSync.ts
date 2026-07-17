@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import type { Tasting } from '@/hooks/useTastings';
 import type { BookRating } from '@/hooks/useBooks';
 import type { UserProfile } from '@/hooks/useProfile';
+import { resolveSyncedProfileName } from '@/lib/profileIdentity';
 
 const TASTINGS_KEY = 'coffee_journal_tastings';
 const BOOKS_KEY = 'coffeemind_book_ratings';
@@ -210,18 +211,24 @@ export function useCloudSync() {
 
         const localTastings = readLocal<Tasting[]>(TASTINGS_KEY, []);
         const localBooks = readLocal<BookRating[]>(BOOKS_KEY, []);
-        const localProfile = readLocal<UserProfile>(PROFILE_KEY, { name: 'CoffeeMind User' });
+        const localProfile = readLocal<UserProfile>(PROFILE_KEY, { name: '' });
         const remoteTastings = (tastingsResult.data || []).map(rowToTasting);
         const remoteBooks = (booksResult.data || []).map(rowToBook);
         const mergedTastings = mergeById(localTastings, remoteTastings);
         const mergedBooks = mergeById(localBooks, remoteBooks);
+        const metadataName = typeof user.user_metadata?.name === 'string' ? user.user_metadata.name : '';
         const mergedProfile: UserProfile = {
           ...localProfile,
           ...(profileResult.data ? {
-            name: profileResult.data.name || localProfile.name,
             avatarColor: profileResult.data.avatar_color || localProfile.avatarColor,
             joinedAt: profileResult.data.created_at || localProfile.joinedAt,
           } : {}),
+          name: resolveSyncedProfileName({
+            localName: localProfile.name,
+            remoteName: profileResult.data?.name,
+            metadataName,
+            email: user.email,
+          }),
         };
 
         suppressRef.current = true;
@@ -266,7 +273,7 @@ export function useCloudSync() {
       try {
         const tastings = readLocal<Tasting[]>(TASTINGS_KEY, []);
         const books = readLocal<BookRating[]>(BOOKS_KEY, []);
-        const profile = readLocal<UserProfile>(PROFILE_KEY, { name: 'CoffeeMind User' });
+        const profile = readLocal<UserProfile>(PROFILE_KEY, { name: '' });
 
         const [remoteTastingIds, remoteBookIds] = await Promise.all([
           supabase.from('tastings').select('id'),
@@ -280,8 +287,14 @@ export function useCloudSync() {
         const deletedTastingIds = (remoteTastingIds.data || []).map((item) => item.id).filter((id) => !localTastingIds.has(id));
         const deletedBookIds = (remoteBookIds.data || []).map((item) => item.id).filter((id) => !localBookIds.has(id));
 
+        const metadataName = typeof user.user_metadata?.name === 'string' ? user.user_metadata.name : '';
+        const syncedName = resolveSyncedProfileName({
+          localName: profile.name,
+          metadataName,
+          email: user.email,
+        });
         const operations: PromiseLike<any>[] = [
-          supabase.from('profiles').upsert({ id: user.id, name: profile.name, avatar_color: profile.avatarColor || '#D9A35F' }),
+          supabase.from('profiles').upsert({ id: user.id, name: syncedName, avatar_color: profile.avatarColor || '#D9A35F' }),
         ];
         if (tastings.length) operations.push(supabase.from('tastings').upsert(tastings.map((t) => tastingToRow(t, user.id))));
         if (books.length) operations.push(supabase.from('book_ratings').upsert(books.map((b) => bookToRow(b, user.id))));
