@@ -278,35 +278,35 @@ function Step1({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
 
       <Field label={copy.wizard.coffeeName}>
         <Input value={d.coffeeName} onChange={(e) => u({ coffeeName: e.target.value })}
-          placeholder="e.g. Kochere Natural" autoFocus
+          placeholder={copy.wizard.placeholders.coffeeName} autoFocus
           className={`${inputCls} text-[18px] font-serif h-14`}
           data-testid="input-coffee-name" />
       </Field>
 
       <Field label={copy.wizard.roaster}>
         <Input value={d.roaster} onChange={(e) => u({ roaster: e.target.value })}
-          placeholder="e.g. Onyx Coffee Lab" className={inputCls} />
+          placeholder={copy.wizard.placeholders.roaster} className={inputCls} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={copy.wizard.country}>
           <Input value={d.country} onChange={(e) => u({ country: e.target.value })}
-            placeholder="Ethiopia" className={inputCls} />
+            placeholder={copy.wizard.placeholders.country} className={inputCls} />
         </Field>
         <Field label={copy.wizard.region}>
           <Input value={d.region} onChange={(e) => u({ region: e.target.value })}
-            placeholder="Yirgacheffe" className={inputCls} />
+            placeholder={copy.wizard.placeholders.region} className={inputCls} />
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={copy.wizard.farm}>
           <Input value={d.farm} onChange={(e) => u({ farm: e.target.value })}
-            placeholder="Kochere Station" className={inputCls} />
+            placeholder={copy.wizard.placeholders.farm} className={inputCls} />
         </Field>
         <Field label={copy.wizard.variety}>
           <Input value={d.variety} onChange={(e) => u({ variety: e.target.value })}
-            placeholder="Heirloom" className={inputCls} />
+            placeholder={copy.wizard.placeholders.variety} className={inputCls} />
         </Field>
       </div>
 
@@ -315,25 +315,25 @@ function Step1({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
         <div className="grid grid-cols-2 gap-3">
           <Field label={copy.wizard.producer}>
             <Input value={d.producer} onChange={(e) => u({ producer: e.target.value })}
-              placeholder="Smallholders" className={inputCls} />
+              placeholder={copy.wizard.placeholders.producer} className={inputCls} />
           </Field>
           <Field label={copy.wizard.washingStation}>
             <Input value={d.washingStation} onChange={(e) => u({ washingStation: e.target.value })}
-              placeholder="Kochere" className={inputCls} />
+              placeholder={copy.wizard.placeholders.washingStation} className={inputCls} />
           </Field>
         </div>
         <div className="grid grid-cols-3 gap-2">
           <Field label={copy.wizard.elevation}>
             <Input value={d.elevationMeters} onChange={(e) => u({ elevationMeters: e.target.value })}
-              placeholder="1950" inputMode="numeric" className={inputCls} />
+              placeholder={copy.wizard.placeholders.elevation} inputMode="numeric" className={inputCls} />
           </Field>
           <Field label={copy.wizard.harvest}>
             <Input value={d.harvestYear} onChange={(e) => u({ harvestYear: e.target.value })}
-              placeholder="2025" inputMode="numeric" className={inputCls} />
+              placeholder={copy.wizard.placeholders.harvest} inputMode="numeric" className={inputCls} />
           </Field>
           <Field label={copy.wizard.lot}>
             <Input value={d.lotNumber} onChange={(e) => u({ lotNumber: e.target.value })}
-              placeholder="LOT-24" className={inputCls} />
+              placeholder={copy.wizard.placeholders.lot} className={inputCls} />
           </Field>
         </div>
       </div>
@@ -371,22 +371,22 @@ function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
       <div className="grid grid-cols-2 gap-3">
         <Field label={copy.wizard.dose}>
           <Input value={d.doseGrams} onChange={(e) => u({ doseGrams: e.target.value })}
-            placeholder="20" inputMode="decimal" className={inputCls} />
+            placeholder={copy.wizard.placeholders.dose} inputMode="decimal" className={inputCls} />
         </Field>
         <Field label={copy.wizard.yield}>
           <Input value={d.beverageWeightGrams} onChange={(e) => u({ beverageWeightGrams: e.target.value })}
-            placeholder="300" inputMode="decimal" className={inputCls} />
+            placeholder={copy.wizard.placeholders.yield} inputMode="decimal" className={inputCls} />
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={copy.wizard.time}>
           <Input value={d.brewTimeSeconds} onChange={(e) => u({ brewTimeSeconds: e.target.value })}
-            placeholder="200" inputMode="numeric" className={inputCls} />
+            placeholder={copy.wizard.placeholders.time} inputMode="numeric" className={inputCls} />
         </Field>
         <Field label={copy.wizard.temperature}>
           <Input value={d.waterTemperatureCelsius} onChange={(e) => u({ waterTemperatureCelsius: e.target.value })}
-            placeholder="94" inputMode="decimal" className={inputCls} />
+            placeholder={copy.wizard.placeholders.temperature} inputMode="decimal" className={inputCls} />
         </Field>
       </div>
 
@@ -395,25 +395,25 @@ function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
         <div className="grid grid-cols-2 gap-3">
           <Field label={copy.wizard.grinder}>
             <Input value={d.grinderModel} onChange={(e) => u({ grinderModel: e.target.value })}
-              placeholder="Comandante C40" className={inputCls} />
+              placeholder={copy.wizard.placeholders.grinder} className={inputCls} />
           </Field>
           <Field label={copy.wizard.grindSetting}>
             <Input value={d.grindSetting} onChange={(e) => u({ grindSetting: e.target.value })}
-              placeholder="24 clicks" className={inputCls} />
+              placeholder={copy.wizard.placeholders.grindSetting} className={inputCls} />
           </Field>
         </div>
         <div className="grid grid-cols-3 gap-2">
           <Field label={copy.wizard.water}>
             <Input value={d.waterName} onChange={(e) => u({ waterName: e.target.value })}
-              placeholder="TWW" className={inputCls} />
+              placeholder={copy.wizard.placeholders.water} className={inputCls} />
           </Field>
           <Field label="TDS, ppm">
             <Input value={d.waterTdsPpm} onChange={(e) => u({ waterTdsPpm: e.target.value })}
-              placeholder="90" inputMode="numeric" className={inputCls} />
+              placeholder={copy.wizard.placeholders.waterTds} inputMode="numeric" className={inputCls} />
           </Field>
           <Field label={copy.wizard.bloom}>
             <Input value={d.bloomSeconds} onChange={(e) => u({ bloomSeconds: e.target.value })}
-              placeholder="45" inputMode="numeric" className={inputCls} />
+              placeholder={copy.wizard.placeholders.bloom} inputMode="numeric" className={inputCls} />
           </Field>
         </div>
       </div>
@@ -448,15 +448,15 @@ function Step3({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
       <div className="space-y-4">
         <Field label={copy.wizard.dryAroma}>
           <Input value={d.dryAroma} onChange={(e) => u({ dryAroma: e.target.value })}
-            placeholder="Jasmine, blueberry, dark chocolate…" className={inputCls} />
+            placeholder={copy.wizard.placeholders.dryAroma} className={inputCls} />
         </Field>
         <Field label={copy.wizard.wetAroma}>
           <Input value={d.wetAroma} onChange={(e) => u({ wetAroma: e.target.value })}
-            placeholder="Blueberry jam, wine, florals…" className={inputCls} />
+            placeholder={copy.wizard.placeholders.wetAroma} className={inputCls} />
         </Field>
         <Field label={copy.wizard.firstImpression}>
           <Input value={d.firstImpression} onChange={(e) => u({ firstImpression: e.target.value })}
-            placeholder="Bright and fruity with a juicy mouthfeel…" className={inputCls} />
+            placeholder={copy.wizard.placeholders.firstImpression} className={inputCls} />
         </Field>
       </div>
 
