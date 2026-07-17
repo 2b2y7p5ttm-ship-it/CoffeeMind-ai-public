@@ -1,10 +1,10 @@
 import { useLocation, useParams } from 'wouter';
 import { useTastings, Tasting } from '@/hooks/useTastings';
 import { ChevronLeft, Trash2, Pencil, Calendar, MapPin, Coffee, Droplets, Clock, Thermometer, Wind, Zap, FileText } from 'lucide-react';
-import { format } from 'date-fns';
 import { ScoreBar } from '@/components/ScoreBar';
 import { FlavorRadar } from '@/components/FlavorRadar';
 import { flavorChipStyle, countryToFlag } from '@/lib/coffeeUtils';
+import { localizeFlavor, useTastingCopy } from '@/lib/tastingI18n';
 
 // ─── Compat helpers ───────────────────────────────────────────────────────────
 
@@ -66,24 +66,26 @@ export default function TastingDetail() {
   const [, setLocation] = useLocation();
   const { id } = useParams<{ id: string }>();
   const { getTasting, deleteTasting } = useTastings();
+  const { copy, locale, language } = useTastingCopy();
+  const c = copy.detail;
 
   const tasting = getTasting(id || '');
 
   if (!tasting) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 text-center">
-        <h2 className="font-serif text-2xl font-medium mb-2">Tasting not found</h2>
-        <p className="text-muted-foreground text-[14px] mb-6">This record may have been deleted.</p>
+        <h2 className="font-serif text-2xl font-medium mb-2">{c.notFound}</h2>
+        <p className="text-muted-foreground text-[14px] mb-6">{c.notFoundText}</p>
         <button onClick={() => setLocation('/')}
           className="bg-card border border-border px-6 py-2.5 rounded-full text-[14px] font-medium">
-          Back Home
+          {c.backHome}
         </button>
       </div>
     );
   }
 
   const handleDelete = () => {
-    if (window.confirm('Delete this tasting? This cannot be undone.')) {
+    if (window.confirm(c.deleteConfirm)) {
       deleteTasting(tasting.id);
       setLocation('/');
     }
@@ -107,23 +109,23 @@ export default function TastingDetail() {
     : null;
 
   const cupProfileMetrics = [
-    { label: 'Аромат', value: tasting.aromaScore ?? 5 },
-    { label: 'Вкус', value: tasting.flavorScore ?? 5 },
-    { label: 'Кислотность', value: tasting.acidity },
-    { label: 'Сладость', value: tasting.sweetness },
-    { label: 'Тело', value: tasting.body },
-    { label: 'Баланс', value: tasting.balance },
-    { label: 'Чистота', value: tasting.cleanCup },
-    { label: 'Послевкусие', value: aftertasteScore || 5 },
+    { label: copy.metrics.aroma, value: tasting.aromaScore ?? 5 },
+    { label: copy.metrics.flavor, value: tasting.flavorScore ?? 5 },
+    { label: copy.metrics.acidity, value: tasting.acidity },
+    { label: copy.metrics.sweetness, value: tasting.sweetness },
+    { label: copy.metrics.body, value: tasting.body },
+    { label: copy.metrics.balance, value: tasting.balance },
+    { label: copy.metrics.clean, value: tasting.cleanCup },
+    { label: copy.metrics.aftertaste, value: aftertasteScore || 5 },
   ];
-  const dominantAttribute = [...cupProfileMetrics].sort((a, b) => b.value - a.value)[0]?.label || 'Баланс';
+  const dominantAttribute = [...cupProfileMetrics].sort((a, b) => b.value - a.value)[0]?.label || copy.metrics.balance;
   const cupCharacter = tasting.acidity >= 8
-    ? 'Яркий и сочный'
+    ? c.characterBright
     : tasting.sweetness >= 8
-    ? 'Сладкий и округлый'
+    ? c.characterSweet
     : tasting.body >= 8
-    ? 'Плотный и насыщенный'
-    : 'Сбалансированный';
+    ? c.characterDense
+    : c.characterBalanced;
 
   return (
     <div className="bg-background min-h-screen pb-10">
@@ -146,14 +148,14 @@ export default function TastingDetail() {
           <button
             onClick={() => setLocation(`/tasting/${tasting.id}/edit`)}
             className="w-10 h-10 bg-black/40 backdrop-blur-md text-primary rounded-full flex items-center justify-center hover:bg-black/60 transition-colors"
-            aria-label="Редактировать дегустацию"
+            aria-label={c.edit}
             data-testid="btn-edit"
           >
             <Pencil size={16} />
           </button>
           <button onClick={handleDelete}
             className="w-10 h-10 bg-destructive/10 text-destructive rounded-full flex items-center justify-center hover:bg-destructive/20 transition-colors"
-            aria-label="Удалить дегустацию"
+            aria-label={c.delete}
             data-testid="btn-delete">
             <Trash2 size={17} />
           </button>
@@ -177,7 +179,7 @@ export default function TastingDetail() {
 
           <div className="bg-background/60 backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-3 flex flex-col items-center flex-shrink-0 shadow-xl">
             <span className={`text-3xl font-serif font-medium leading-none ${scoreColor}`}>{tasting.overallScore}</span>
-            <span className="text-[9px] uppercase tracking-widest text-muted-foreground/60 mt-1.5 font-medium">Score</span>
+            <span className="text-[9px] uppercase tracking-widest text-muted-foreground/60 mt-1.5 font-medium">{c.score}</span>
           </div>
         </div>
       </div>
@@ -188,7 +190,7 @@ export default function TastingDetail() {
         <div className="flex flex-wrap gap-2 items-center">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground bg-card/60 border border-white/[0.06] px-3 py-1.5 rounded-full">
             <Calendar size={11} className="text-primary/70" />
-            {format(new Date(tasting.createdAt), 'MMMM d, yyyy')}
+            {new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(tasting.createdAt))}
           </span>
           {processing && (
             <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest px-2.5 py-1.5 rounded-full border border-primary/20">
@@ -200,60 +202,60 @@ export default function TastingDetail() {
 
         {/* ── Coffee info ─────────────────────────────────────────────────── */}
         <section>
-          <SectionHeader icon={Coffee} label="Origin & Bean" />
+          <SectionHeader icon={Coffee} label={c.originBean} />
           <div className="bg-card/60 border border-white/[0.06] rounded-2xl overflow-hidden">
-            <InfoRow label="Roaster"   value={tasting.roaster} />
-            <InfoRow label="Country"   value={tasting.country} />
-            <InfoRow label="Region"    value={tasting.region} />
-            <InfoRow label="Farm"      value={tasting.farm} />
-            <InfoRow label="Producer" value={tasting.producer} />
-            <InfoRow label="Washing station" value={tasting.washingStation} />
-            <InfoRow label="Elevation" value={tasting.elevationMeters ? `${tasting.elevationMeters} m` : ''} />
-            <InfoRow label="Harvest" value={tasting.harvestYear} />
-            <InfoRow label="Lot" value={tasting.lotNumber} />
-            <InfoRow label="Variety"   value={tasting.variety} />
-            <InfoRow label="Processing" value={processing} />
-            <InfoRow label="Roast Date" value={tasting.roastDate} />
+            <InfoRow label={c.roaster}   value={tasting.roaster} />
+            <InfoRow label={c.country}   value={tasting.country} />
+            <InfoRow label={c.region}    value={tasting.region} />
+            <InfoRow label={c.farm}      value={tasting.farm} />
+            <InfoRow label={c.producer} value={tasting.producer} />
+            <InfoRow label={c.washingStation} value={tasting.washingStation} />
+            <InfoRow label={c.elevation} value={tasting.elevationMeters ? `${tasting.elevationMeters} m` : ''} />
+            <InfoRow label={c.harvest} value={tasting.harvestYear} />
+            <InfoRow label={c.lot} value={tasting.lotNumber} />
+            <InfoRow label={c.variety}   value={tasting.variety} />
+            <InfoRow label={c.processing} value={processing} />
+            <InfoRow label={c.roastDate} value={tasting.roastDate} />
           </div>
         </section>
 
         {/* ── Brewing ─────────────────────────────────────────────────────── */}
         <section>
-          <SectionHeader icon={Droplets} label="Brew Details" />
+          <SectionHeader icon={Droplets} label={c.brewDetails} />
           <div className="space-y-3">
             {brewMethod && (
               <div className="bg-card/60 border border-white/[0.06] rounded-2xl px-4 py-3 flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-widest text-muted-foreground/55 font-semibold">Method</span>
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground/55 font-semibold">{c.method}</span>
                 <span className="text-[15px] font-semibold text-foreground">{brewMethod}</span>
               </div>
             )}
 
             {(tasting.doseGrams || tasting.beverageWeightGrams || tasting.brewTimeSeconds || tasting.waterTemperatureCelsius) && (
               <div className="grid grid-cols-4 gap-2">
-                <BrewStat label="Dose" value={tasting.doseGrams} unit="g" />
-                <BrewStat label="Yield" value={tasting.beverageWeightGrams} unit="g" />
-                <BrewStat label="Time" value={tasting.brewTimeSeconds} unit="sec" />
-                <BrewStat label="Temp" value={tasting.waterTemperatureCelsius} unit="°C" />
+                <BrewStat label={c.dose} value={tasting.doseGrams} unit="g" />
+                <BrewStat label={c.yield} value={tasting.beverageWeightGrams} unit="g" />
+                <BrewStat label={c.time} value={tasting.brewTimeSeconds} unit={c.secUnit} />
+                <BrewStat label={c.temp} value={tasting.waterTemperatureCelsius} unit="°C" />
               </div>
             )}
 
             {doseRatio && (
               <div className="bg-primary/[0.07] border border-primary/20 rounded-xl px-4 py-2.5 flex justify-between items-center">
-                <span className="text-[11px] text-muted-foreground font-medium">Brew Ratio</span>
+                <span className="text-[11px] text-muted-foreground font-medium">{c.ratio}</span>
                 <span className="font-serif text-primary text-lg">{doseRatio}</span>
               </div>
             )}
 
             {/* Legacy brew fields */}
             {(!tasting.doseGrams && tasting.dose) && (
-              <InfoRow label="Dose" value={`${tasting.dose}g`} />
+              <InfoRow label={c.dose} value={`${tasting.dose}g`} />
             )}
             <div className="bg-card/60 border border-white/[0.06] rounded-2xl px-4">
-              <InfoRow label="Grinder" value={tasting.grinderModel || tasting.grinder} />
-              <InfoRow label="Grind setting" value={tasting.grindSetting} />
-              <InfoRow label="Water" value={tasting.waterName} />
-              <InfoRow label="Water TDS" value={tasting.waterTdsPpm ? `${tasting.waterTdsPpm} ppm` : ''} />
-              <InfoRow label="Bloom" value={tasting.bloomSeconds ? `${tasting.bloomSeconds} sec` : ''} />
+              <InfoRow label={c.grinder} value={tasting.grinderModel || tasting.grinder} />
+              <InfoRow label={c.grindSetting} value={tasting.grindSetting} />
+              <InfoRow label={c.water} value={tasting.waterName} />
+              <InfoRow label={c.waterTds} value={tasting.waterTdsPpm ? `${tasting.waterTdsPpm} ppm` : ''} />
+              <InfoRow label={c.bloom} value={tasting.bloomSeconds ? `${tasting.bloomSeconds} ${c.secUnit}` : ''} />
             </div>
           </div>
         </section>
@@ -261,23 +263,23 @@ export default function TastingDetail() {
         {/* ── Sensory text ────────────────────────────────────────────────── */}
         {(dryAroma || tasting.wetAroma || firstImpression) && (
           <section>
-            <SectionHeader icon={Wind} label="Sensory" />
+            <SectionHeader icon={Wind} label={c.sensory} />
             <div className="space-y-2.5">
               {dryAroma && (
                 <div className="bg-card/60 border border-white/[0.06] rounded-2xl px-4 py-3">
-                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/50 font-semibold block mb-1.5">Dry Aroma</span>
+                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/50 font-semibold block mb-1.5">{c.dryAroma}</span>
                   <p className="text-[13px] font-medium text-foreground leading-relaxed">{dryAroma}</p>
                 </div>
               )}
               {tasting.wetAroma && (
                 <div className="bg-card/60 border border-white/[0.06] rounded-2xl px-4 py-3">
-                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/50 font-semibold block mb-1.5">Wet Aroma</span>
+                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/50 font-semibold block mb-1.5">{c.wetAroma}</span>
                   <p className="text-[13px] font-medium text-foreground leading-relaxed">{tasting.wetAroma}</p>
                 </div>
               )}
               {firstImpression && (
                 <div className="bg-card/60 border border-white/[0.06] rounded-2xl px-4 py-3">
-                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/50 font-semibold block mb-1.5">First Impression</span>
+                  <span className="text-[9px] uppercase tracking-widest text-muted-foreground/50 font-semibold block mb-1.5">{c.firstImpression}</span>
                   <p className="text-[13px] font-medium text-foreground leading-relaxed">{firstImpression}</p>
                 </div>
               )}
@@ -287,13 +289,13 @@ export default function TastingDetail() {
 
         {/* ── Visual cup profile ─────────────────────────────────────────── */}
         <section>
-          <SectionHeader icon={Zap} label="Cup Profile" />
+          <SectionHeader icon={Zap} label={c.cupProfile} />
           <div className="coffee-panel rounded-[24px] p-4">
             <FlavorRadar metrics={cupProfileMetrics} />
             <div className="grid grid-cols-2 gap-2 mt-2">
               {[
-                ['Самая яркая грань', dominantAttribute],
-                ['Характер', cupCharacter],
+                [c.brightest, dominantAttribute],
+                [c.character, cupCharacter],
               ].map(([label, value]) => (
                 <div key={String(label)} className="bg-background/45 border border-white/[0.05] rounded-2xl px-3 py-3">
                   <span className="text-[9px] uppercase tracking-widest text-muted-foreground/45 font-semibold block mb-1">{label}</span>
@@ -306,34 +308,34 @@ export default function TastingDetail() {
 
         {/* ── Score bars ──────────────────────────────────────────────────── */}
         <section>
-          <SectionHeader icon={Zap} label="Attribute Scores" />
+          <SectionHeader icon={Zap} label={c.attributeScores} />
           <div className="bg-card/60 border border-white/[0.06] rounded-2xl p-5 space-y-4">
-            <ScoreBar label="Aroma"      value={tasting.aromaScore ?? 5} />
-            <ScoreBar label="Flavor"     value={tasting.flavorScore ?? 5} />
-            <ScoreBar label="Acidity"    value={tasting.acidity} />
-            <ScoreBar label="Sweetness"  value={tasting.sweetness} />
-            <ScoreBar label="Body"       value={tasting.body} />
-            <ScoreBar label="Bitterness" value={tasting.bitterness} />
-            <ScoreBar label="Balance"    value={tasting.balance} />
-            <ScoreBar label="Clean Cup"  value={tasting.cleanCup} />
-            {aftertasteScore > 0 && <ScoreBar label="Aftertaste" value={aftertasteScore} />}
+            <ScoreBar label={copy.metrics.aroma}      value={tasting.aromaScore ?? 5} />
+            <ScoreBar label={copy.metrics.flavor}     value={tasting.flavorScore ?? 5} />
+            <ScoreBar label={copy.metrics.acidity}    value={tasting.acidity} />
+            <ScoreBar label={copy.metrics.sweetness}  value={tasting.sweetness} />
+            <ScoreBar label={copy.metrics.body}       value={tasting.body} />
+            <ScoreBar label={copy.metrics.bitterness} value={tasting.bitterness} />
+            <ScoreBar label={copy.metrics.balance}    value={tasting.balance} />
+            <ScoreBar label={copy.metrics.cleanCup}  value={tasting.cleanCup} />
+            {aftertasteScore > 0 && <ScoreBar label={copy.metrics.aftertaste} value={aftertasteScore} />}
           </div>
         </section>
 
         {/* ── Flavor descriptors ──────────────────────────────────────────── */}
         {(topDescriptors.length > 0 || additionalDescriptors.length > 0) && (
           <section>
-            <SectionHeader icon={Coffee} label="Flavor Profile" />
+            <SectionHeader icon={Coffee} label={c.flavorProfile} />
             <div className="space-y-3">
               {topDescriptors.length > 0 && (
                 <div>
-                  <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-semibold mb-2">Top Descriptors</p>
+                  <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-semibold mb-2">{c.topDescriptors}</p>
                   <div className="flex flex-wrap gap-2">
                     {topDescriptors.map((desc) => {
                       const { bg, text, ring } = flavorChipStyle(desc);
                       return (
                         <span key={desc} className={`${bg} ${text} ${ring} text-[12px] font-medium px-3 py-1.5 rounded-full ring-1`}>
-                          {desc}
+                          {localizeFlavor(desc, language)}
                         </span>
                       );
                     })}
@@ -342,7 +344,7 @@ export default function TastingDetail() {
               )}
               {additionalDescriptors.length > 0 && (
                 <div>
-                  <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-semibold mb-2">Additional</p>
+                  <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-semibold mb-2">{c.additional}</p>
                   <div className="flex flex-wrap gap-2">
                     {additionalDescriptors.map((desc) => (
                       <span key={desc} className="bg-white/[0.05] text-muted-foreground text-[12px] font-medium px-3 py-1.5 rounded-full ring-1 ring-white/10">
@@ -359,7 +361,7 @@ export default function TastingDetail() {
         {/* ── Notes ───────────────────────────────────────────────────────── */}
         {tasting.notes && (
           <section>
-            <SectionHeader icon={FileText} label="Tasting Notes" />
+            <SectionHeader icon={FileText} label={c.tastingNotes} />
             <div className="bg-card/30 border border-white/[0.04] rounded-2xl p-5 leading-relaxed text-[13px] text-foreground/80">
               {tasting.notes}
             </div>

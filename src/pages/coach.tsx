@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Brain, CheckCircle2, ChevronLeft, Coffee, Sparkles, Target } from 'lucide-react';
 import { useTastings, Tasting } from '@/hooks/useTastings';
 import { flavorChipStyle } from '@/lib/coffeeUtils';
+import { fill, localizeFlavor, useTastingCopy, type TastingCopy } from '@/lib/tastingI18n';
 
 function getProcessing(t: Tasting): string {
   return t.processing || t.process || '';
@@ -13,32 +14,29 @@ function getDescriptors(t: Tasting): string[] {
   return [...top, ...(t.additionalDescriptors || [])].filter(Boolean);
 }
 
-function acidityHint(value: number): string {
-  if (value >= 8) return 'Кислотность высокая. В следующий раз попробуй уточнить: цитрусовая, ягодная, винная или яблочная?';
-  if (value >= 6) return 'Кислотность заметная, но не резкая. Хороший момент сравнить ее со сладостью и телом.';
-  return 'Кислотность мягкая. Обрати внимание, не уходит ли чашка в шоколад, орехи или карамель.';
+function acidityHint(value: number, c: TastingCopy['coach']): string {
+  if (value >= 8) return c.acidityHigh;
+  if (value >= 6) return c.acidityMedium;
+  return c.acidityLow;
 }
 
-function sweetnessHint(value: number): string {
-  if (value >= 8) return 'Сладость выраженная. Попробуй назвать ее точнее: мед, карамель, джем, спелый фрукт или сахар.';
-  if (value >= 6) return 'Сладость есть, но ее можно раскрыть рецептом: помол, температура и время могут заметно изменить баланс.';
-  return 'Сладость низкая. Проверь, не мешают ли ей горечь, недоэкстракция или слишком короткое время.';
+function sweetnessHint(value: number, c: TastingCopy['coach']): string {
+  if (value >= 8) return c.sweetnessHigh;
+  if (value >= 6) return c.sweetnessMedium;
+  return c.sweetnessLow;
 }
 
-function descriptorPrompt(descriptors: string[]): string {
-  if (!descriptors.length) {
-    return 'Ты пока не выбрал дескрипторы. На следующей дегустации попробуй зафиксировать три главных: один аромат, один вкус и одно послевкусие.';
-  }
-  const [first] = descriptors;
-  return `Главный дескриптор: ${first}. Попробуй уточнить его форму: свежий, джемовый, сушеный, конфетный или ферментированный?`;
+function descriptorPrompt(descriptors: string[], c: TastingCopy['coach']): string {
+  if (!descriptors.length) return c.noDescriptor;
+  return fill(c.descriptor, { name: descriptors[0] });
 }
 
-function qGraderQuestions(t: Tasting, descriptors: string[]): string[] {
-  const first = descriptors[0] || 'главный вкус';
+function qGraderQuestions(t: Tasting, descriptors: string[], c: TastingCopy['coach']): string[] {
+  const first = descriptors[0] || c.mainFlavor;
   return [
-    `Если описывать "${first}" точнее, это аромат, вкус или послевкусие?`,
-    `Кислотность ${t.acidity}/10: она больше похожа на лимон, яблоко, ягоду или вино?`,
-    `Что изменится после остывания: сладость, тело, чистота или послевкусие?`,
+    fill(c.q1, { name: first }),
+    fill(c.q2, { value: t.acidity }),
+    c.q3,
   ];
 }
 
@@ -46,15 +44,17 @@ export default function Coach() {
   const [, setLocation] = useLocation();
   const { id } = useParams<{ id: string }>();
   const { getTasting } = useTastings();
+  const { copy, language } = useTastingCopy();
+  const c = copy.coach;
   const tasting = getTasting(id || '');
 
   if (!tasting) {
     return (
       <div className="min-h-screen bg-background px-4 iphone-safe-top text-center">
-        <h1 className="font-serif text-2xl mb-2">Дегустация не найдена</h1>
-        <p className="text-muted-foreground text-[14px] mb-6">Возможно, запись была удалена.</p>
+        <h1 className="font-serif text-2xl mb-2">{c.notFound}</h1>
+        <p className="text-muted-foreground text-[14px] mb-6">{c.notFoundText}</p>
         <button onClick={() => setLocation('/')} className="bg-primary text-primary-foreground rounded-full px-6 py-3 text-[14px] font-semibold">
-          На главный экран
+          {c.backHome}
         </button>
       </div>
     );
@@ -63,11 +63,11 @@ export default function Coach() {
   const descriptors = getDescriptors(tasting);
   const processing = getProcessing(tasting);
   const strengths = [
-    tasting.balance >= 7 ? 'Баланс чашки выглядит уверенно.' : 'Баланс можно еще докрутить рецептом.',
-    tasting.cleanCup >= 7 ? 'Чистота вкуса хорошая, запись пригодна для сравнения.' : 'Стоит отдельно проверить чистоту чашки при остывании.',
-    tasting.aftertaste >= 7 ? 'Послевкусие достаточно длинное, его стоит описывать подробнее.' : 'Послевкусие пока выглядит коротким или неярким.',
+    tasting.balance >= 7 ? c.balanceGood : c.balanceImprove,
+    tasting.cleanCup >= 7 ? c.cleanGood : c.cleanImprove,
+    tasting.aftertaste >= 7 ? c.aftertasteGood : c.aftertasteImprove,
   ];
-  const questions = qGraderQuestions(tasting, descriptors);
+  const questions = qGraderQuestions(tasting, descriptors.map((item) => localizeFlavor(item, language)), c);
 
   return (
     <div className="min-h-screen bg-background pb-8">
@@ -75,6 +75,7 @@ export default function Coach() {
         <button
           onClick={() => setLocation('/')}
           className="w-10 h-10 mb-5 rounded-full bg-card/60 border border-white/[0.08] flex items-center justify-center text-muted-foreground"
+          aria-label={c.backHome}
         >
           <ChevronLeft size={20} />
         </button>
@@ -84,10 +85,8 @@ export default function Coach() {
             <Brain size={14} />
             <span className="text-[10px] uppercase tracking-widest font-bold">AI Coach</span>
           </div>
-          <h1 className="font-serif text-[2rem] leading-tight text-foreground mb-2">Разбор чашки</h1>
-          <p className="text-muted-foreground text-[14px] leading-relaxed">
-            CoffeeMind помогает превратить запись в тренировку вкуса. Это не финальный AI-анализ, а первая версия коуча на основе твоих данных.
-          </p>
+          <h1 className="font-serif text-[2rem] leading-tight text-foreground mb-2">{c.title}</h1>
+          <p className="text-muted-foreground text-[14px] leading-relaxed">{c.intro}</p>
         </motion.div>
       </header>
 
@@ -95,7 +94,7 @@ export default function Coach() {
         <section className="rounded-[24px] bg-card/70 border border-white/[0.07] p-5">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/45 font-bold mb-1">Сохранено</p>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/45 font-bold mb-1">{c.saved}</p>
               <h2 className="font-serif text-2xl text-foreground">{tasting.coffeeName}</h2>
               <p className="text-[13px] text-muted-foreground mt-1">
                 {[tasting.country, processing, tasting.brewMethod || tasting.brewingMethod].filter(Boolean).join(' · ')}
@@ -111,7 +110,7 @@ export default function Coach() {
             <div className="flex flex-wrap gap-2">
               {descriptors.slice(0, 6).map((desc) => {
                 const { bg, text, ring } = flavorChipStyle(desc);
-                return <span key={desc} className={`${bg} ${text} ${ring} ring-1 rounded-full px-3 py-1.5 text-[12px] font-medium`}>{desc}</span>;
+                return <span key={desc} className={`${bg} ${text} ${ring} ring-1 rounded-full px-3 py-1.5 text-[12px] font-medium`}>{localizeFlavor(desc, language)}</span>;
               })}
             </div>
           )}
@@ -120,19 +119,17 @@ export default function Coach() {
         <section className="rounded-[24px] bg-primary/[0.07] border border-primary/20 p-5">
           <div className="flex items-center gap-2 mb-3 text-primary">
             <Sparkles size={16} />
-            <h3 className="text-[12px] uppercase tracking-widest font-bold">Главная мысль</h3>
+            <h3 className="text-[12px] uppercase tracking-widest font-bold">{c.mainThought}</h3>
           </div>
-          <p className="text-[15px] leading-relaxed text-foreground">
-            {descriptorPrompt(descriptors)}
-          </p>
+          <p className="text-[15px] leading-relaxed text-foreground">{descriptorPrompt(descriptors.map((item) => localizeFlavor(item, language)), c)}</p>
         </section>
 
         <section className="rounded-[24px] bg-card/60 border border-white/[0.07] p-5 space-y-4">
           <div className="flex items-center gap-2 text-primary">
             <Coffee size={15} />
-            <h3 className="text-[12px] uppercase tracking-widest font-bold">Что заметить в следующий раз</h3>
+            <h3 className="text-[12px] uppercase tracking-widest font-bold">{c.nextTime}</h3>
           </div>
-          {[acidityHint(tasting.acidity), sweetnessHint(tasting.sweetness), ...strengths].map((item) => (
+          {[acidityHint(tasting.acidity, c), sweetnessHint(tasting.sweetness, c), ...strengths].map((item) => (
             <div key={item} className="flex gap-3">
               <CheckCircle2 size={16} className="text-primary/80 mt-0.5 flex-shrink-0" />
               <p className="text-[13px] leading-relaxed text-muted-foreground">{item}</p>
@@ -143,7 +140,7 @@ export default function Coach() {
         <section className="rounded-[24px] bg-card/60 border border-white/[0.07] p-5 space-y-4">
           <div className="flex items-center gap-2 text-primary">
             <Target size={15} />
-            <h3 className="text-[12px] uppercase tracking-widest font-bold">Вопросы для точности</h3>
+            <h3 className="text-[12px] uppercase tracking-widest font-bold">{c.questions}</h3>
           </div>
           {questions.map((question, index) => (
             <div key={question} className="flex gap-3">
@@ -156,10 +153,8 @@ export default function Coach() {
         </section>
 
         <section className="rounded-[24px] bg-card/40 border border-white/[0.05] p-5">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground/45 font-bold mb-3">Мини-задание</p>
-          <p className="text-[14px] leading-relaxed text-foreground">
-            Сделай еще один глоток на остывании и ответь себе: вкус стал слаще, суше или ярче? Это простое наблюдение сильно прокачивает сенсорную память.
-          </p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground/45 font-bold mb-3">{c.miniTask}</p>
+          <p className="text-[14px] leading-relaxed text-foreground">{c.miniTaskText}</p>
         </section>
 
         <div className="grid grid-cols-2 gap-3 pt-2">
@@ -167,13 +162,13 @@ export default function Coach() {
             onClick={() => setLocation(`/tasting/${tasting.id}`)}
             className="h-12 rounded-full bg-card border border-white/[0.08] text-foreground text-[13px] font-semibold"
           >
-            Открыть запись
+            {c.openRecord}
           </button>
           <button
             onClick={() => setLocation('/')}
             className="h-12 rounded-full bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-1.5"
           >
-            В журнал
+            {c.journal}
             <ArrowRight size={15} />
           </button>
         </div>

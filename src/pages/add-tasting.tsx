@@ -12,6 +12,7 @@ import { ScoreSlider } from '@/components/ScoreSlider';
 import { FlavorRadar } from '@/components/FlavorRadar';
 import { FlavorWheel } from '@/components/FlavorWheel';
 import { CURATED_PHOTOS, flavorChipStyle, countryToFlag, getCardPhoto } from '@/lib/coffeeUtils';
+import { localizeFlavor, useTastingCopy } from '@/lib/tastingI18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -148,14 +149,7 @@ function clearTastingDraft(storageKey = DRAFT_STORAGE_KEY) {
   }
 }
 
-const STEP_META = [
-  { title: 'Кофе', eyebrow: 'Паспорт зерна', hint: 'Сохрани происхождение, обработку и обжарщика.', icon: Coffee },
-  { title: 'Рецепт', eyebrow: 'Переменные', hint: 'Запиши рецепт так, чтобы его можно было повторить.', icon: Droplets },
-  { title: 'Сенсорика', eyebrow: 'Оценка чашки', hint: 'Сначала ощущения, потом цифры. Так запись получается точнее.', icon: Wind },
-  { title: 'Вкус', eyebrow: 'Дескрипторы', hint: 'Выбери три главных вкуса. Это ядро твоей вкусовой памяти.', icon: Sparkles },
-  { title: 'Заметки', eyebrow: 'Контекст', hint: 'Добавь мысль, рецепт на будущее или фото карточки.', icon: NotebookPen },
-  { title: 'Итог', eyebrow: 'Проверка', hint: 'После сохранения CoffeeMind откроет AI Coach.', icon: Brain },
-] as const;
+const STEP_ICONS = [Coffee, Droplets, Wind, Sparkles, NotebookPen, Brain] as const;
 const PROCESS_OPTIONS = ['Washed', 'Natural', 'Honey', 'Anaerobic', 'Infused', 'Wet-Hulled', 'Other'];
 const BREW_METHODS = ['V60', 'Espresso', 'AeroPress', 'Chemex', 'French Press', 'Kalita Wave', 'Moka Pot', 'Cold Brew', 'Clever Dripper'];
 
@@ -173,8 +167,9 @@ const slideTransition = { type: 'spring' as const, stiffness: 380, damping: 38 }
 const inputCls = 'bg-card/60 border-white/[0.08] focus-visible:ring-primary/40 h-12 rounded-xl text-[14px]';
 
 function StepIntro({ step }: { step: number }) {
-  const meta = STEP_META[step - 1];
-  const Icon = meta.icon;
+  const { copy } = useTastingCopy();
+  const meta = copy.wizard.steps[step - 1];
+  const Icon = STEP_ICONS[step - 1];
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -235,6 +230,7 @@ function PillRow({ options, value, onChange }: { options: string[]; value: strin
 }
 
 function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (v: string[]) => void; placeholder: string }) {
+  const { copy } = useTastingCopy();
   const [input, setInput] = useState('');
 
   const add = (raw: string) => {
@@ -263,7 +259,7 @@ function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKey}
         onBlur={() => input.trim() && add(input)}
-        placeholder={tags.length === 0 ? placeholder : '+ add more'}
+        placeholder={tags.length === 0 ? placeholder : copy.wizard.addMore}
         className="flex-1 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground/40 outline-none min-w-[100px]"
       />
     </div>
@@ -273,79 +269,80 @@ function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (
 // ─── Step 1 — Coffee ──────────────────────────────────────────────────────────
 
 function Step1({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void }) {
+  const { copy } = useTastingCopy();
   return (
     <div className="space-y-5">
-      <CoachHint title="Совет CoffeeMind">
-        Название кофе обязательно, остальное можно заполнить позже. Но страна, обработка и обжарщик сделают аналитику намного полезнее.
+      <CoachHint title={copy.wizard.coffeeTipTitle}>
+        {copy.wizard.coffeeTip}
       </CoachHint>
 
-      <Field label="Название кофе *">
+      <Field label={copy.wizard.coffeeName}>
         <Input value={d.coffeeName} onChange={(e) => u({ coffeeName: e.target.value })}
           placeholder="e.g. Kochere Natural" autoFocus
           className={`${inputCls} text-[18px] font-serif h-14`}
           data-testid="input-coffee-name" />
       </Field>
 
-      <Field label="Обжарщик">
+      <Field label={copy.wizard.roaster}>
         <Input value={d.roaster} onChange={(e) => u({ roaster: e.target.value })}
           placeholder="e.g. Onyx Coffee Lab" className={inputCls} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Страна">
+        <Field label={copy.wizard.country}>
           <Input value={d.country} onChange={(e) => u({ country: e.target.value })}
             placeholder="Ethiopia" className={inputCls} />
         </Field>
-        <Field label="Регион">
+        <Field label={copy.wizard.region}>
           <Input value={d.region} onChange={(e) => u({ region: e.target.value })}
             placeholder="Yirgacheffe" className={inputCls} />
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Ферма">
+        <Field label={copy.wizard.farm}>
           <Input value={d.farm} onChange={(e) => u({ farm: e.target.value })}
             placeholder="Kochere Station" className={inputCls} />
         </Field>
-        <Field label="Разновидность">
+        <Field label={copy.wizard.variety}>
           <Input value={d.variety} onChange={(e) => u({ variety: e.target.value })}
             placeholder="Heirloom" className={inputCls} />
         </Field>
       </div>
 
       <div className="coffee-panel rounded-[22px] p-4 space-y-4">
-        <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Расширенный паспорт зерна</p>
+        <p className="text-[10px] uppercase tracking-widest text-primary font-bold">{copy.wizard.extendedBean}</p>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Производитель">
+          <Field label={copy.wizard.producer}>
             <Input value={d.producer} onChange={(e) => u({ producer: e.target.value })}
               placeholder="Smallholders" className={inputCls} />
           </Field>
-          <Field label="Станция обработки">
+          <Field label={copy.wizard.washingStation}>
             <Input value={d.washingStation} onChange={(e) => u({ washingStation: e.target.value })}
               placeholder="Kochere" className={inputCls} />
           </Field>
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <Field label="Высота, м">
+          <Field label={copy.wizard.elevation}>
             <Input value={d.elevationMeters} onChange={(e) => u({ elevationMeters: e.target.value })}
               placeholder="1950" inputMode="numeric" className={inputCls} />
           </Field>
-          <Field label="Урожай">
+          <Field label={copy.wizard.harvest}>
             <Input value={d.harvestYear} onChange={(e) => u({ harvestYear: e.target.value })}
               placeholder="2025" inputMode="numeric" className={inputCls} />
           </Field>
-          <Field label="Лот">
+          <Field label={copy.wizard.lot}>
             <Input value={d.lotNumber} onChange={(e) => u({ lotNumber: e.target.value })}
               placeholder="LOT-24" className={inputCls} />
           </Field>
         </div>
       </div>
 
-      <Field label="Обработка">
+      <Field label={copy.wizard.processing}>
         <PillRow options={PROCESS_OPTIONS} value={d.processing} onChange={(v) => u({ processing: v })} />
       </Field>
 
-      <Field label="Дата обжарки">
+      <Field label={copy.wizard.roastDate}>
         <Input type="date" value={d.roastDate} onChange={(e) => u({ roastDate: e.target.value })}
           className={`${inputCls} text-[13px]`} />
       </Field>
@@ -356,56 +353,57 @@ function Step1({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
 // ─── Step 2 — Brewing ─────────────────────────────────────────────────────────
 
 function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void }) {
+  const { copy } = useTastingCopy();
   const ratio = d.doseGrams && d.beverageWeightGrams && Number(d.doseGrams) > 0
     ? (Number(d.beverageWeightGrams) / Number(d.doseGrams)).toFixed(1)
     : null;
 
   return (
     <div className="space-y-5">
-      <CoachHint title="Рецепт для повторения">
-        Записывай рецепт как лабораторную заметку: доза, выход, время и температура помогут понять, почему чашка получилась именно такой.
+      <CoachHint title={copy.wizard.recipeTipTitle}>
+        {copy.wizard.recipeTip}
       </CoachHint>
 
-      <Field label="Метод приготовления *">
+      <Field label={copy.wizard.brewMethod}>
         <PillRow options={BREW_METHODS} value={d.brewMethod} onChange={(v) => u({ brewMethod: v })} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Доза (г)">
+        <Field label={copy.wizard.dose}>
           <Input value={d.doseGrams} onChange={(e) => u({ doseGrams: e.target.value })}
             placeholder="20" inputMode="decimal" className={inputCls} />
         </Field>
-        <Field label="Выход напитка (г)">
+        <Field label={copy.wizard.yield}>
           <Input value={d.beverageWeightGrams} onChange={(e) => u({ beverageWeightGrams: e.target.value })}
             placeholder="300" inputMode="decimal" className={inputCls} />
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Время (сек)">
+        <Field label={copy.wizard.time}>
           <Input value={d.brewTimeSeconds} onChange={(e) => u({ brewTimeSeconds: e.target.value })}
             placeholder="200" inputMode="numeric" className={inputCls} />
         </Field>
-        <Field label="Температура воды (°C)">
+        <Field label={copy.wizard.temperature}>
           <Input value={d.waterTemperatureCelsius} onChange={(e) => u({ waterTemperatureCelsius: e.target.value })}
             placeholder="94" inputMode="decimal" className={inputCls} />
         </Field>
       </div>
 
       <div className="coffee-panel rounded-[22px] p-4 space-y-4">
-        <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Оборудование и вода</p>
+        <p className="text-[10px] uppercase tracking-widest text-primary font-bold">{copy.wizard.equipment}</p>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Кофемолка">
+          <Field label={copy.wizard.grinder}>
             <Input value={d.grinderModel} onChange={(e) => u({ grinderModel: e.target.value })}
               placeholder="Comandante C40" className={inputCls} />
           </Field>
-          <Field label="Настройка помола">
+          <Field label={copy.wizard.grindSetting}>
             <Input value={d.grindSetting} onChange={(e) => u({ grindSetting: e.target.value })}
               placeholder="24 clicks" className={inputCls} />
           </Field>
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <Field label="Вода">
+          <Field label={copy.wizard.water}>
             <Input value={d.waterName} onChange={(e) => u({ waterName: e.target.value })}
               placeholder="TWW" className={inputCls} />
           </Field>
@@ -413,7 +411,7 @@ function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
             <Input value={d.waterTdsPpm} onChange={(e) => u({ waterTdsPpm: e.target.value })}
               placeholder="90" inputMode="numeric" className={inputCls} />
           </Field>
-          <Field label="Блуминг, сек">
+          <Field label={copy.wizard.bloom}>
             <Input value={d.bloomSeconds} onChange={(e) => u({ bloomSeconds: e.target.value })}
               placeholder="45" inputMode="numeric" className={inputCls} />
           </Field>
@@ -428,7 +426,7 @@ function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
             exit={{ opacity: 0, y: 6 }}
             className="bg-primary/[0.07] border border-primary/20 rounded-2xl px-4 py-3 flex justify-between items-center"
           >
-            <span className="text-[12px] text-muted-foreground font-medium">Брю-рейшио</span>
+            <span className="text-[12px] text-muted-foreground font-medium">{copy.wizard.brewRatio}</span>
             <span className="font-serif text-primary text-xl">1 : {ratio}</span>
           </motion.div>
         )}
@@ -440,44 +438,45 @@ function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
 // ─── Step 3 — Sensory ─────────────────────────────────────────────────────────
 
 function Step3({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void }) {
+  const { copy } = useTastingCopy();
   return (
     <div className="space-y-6">
-      <CoachHint title="Порядок дегустации">
-        Сначала зафиксируй сухой аромат, затем аромат после заваривания, и только потом ставь оценки. Так меньше риска подогнать вкус под цифры.
+      <CoachHint title={copy.wizard.sensoryTipTitle}>
+        {copy.wizard.sensoryTip}
       </CoachHint>
 
       <div className="space-y-4">
-        <Field label="Сухой аромат">
+        <Field label={copy.wizard.dryAroma}>
           <Input value={d.dryAroma} onChange={(e) => u({ dryAroma: e.target.value })}
             placeholder="Jasmine, blueberry, dark chocolate…" className={inputCls} />
         </Field>
-        <Field label="Влажный аромат">
+        <Field label={copy.wizard.wetAroma}>
           <Input value={d.wetAroma} onChange={(e) => u({ wetAroma: e.target.value })}
             placeholder="Blueberry jam, wine, florals…" className={inputCls} />
         </Field>
-        <Field label="Первое впечатление">
+        <Field label={copy.wizard.firstImpression}>
           <Input value={d.firstImpression} onChange={(e) => u({ firstImpression: e.target.value })}
             placeholder="Bright and fruity with a juicy mouthfeel…" className={inputCls} />
         </Field>
       </div>
 
       <div className="coffee-panel rounded-[24px] p-5 space-y-7">
-        <ScoreSlider label="Аромат" value={d.aromaScore} onChange={(v) => u({ aromaScore: v })} />
-        <ScoreSlider label="Вкус" value={d.flavorScore} onChange={(v) => u({ flavorScore: v })} />
-        <ScoreSlider label="Кислотность" value={d.acidity} onChange={(v) => u({ acidity: v })} />
-        <ScoreSlider label="Сладость" value={d.sweetness} onChange={(v) => u({ sweetness: v })} />
-        <ScoreSlider label="Тело" value={d.body} onChange={(v) => u({ body: v })} />
-        <ScoreSlider label="Горечь" value={d.bitterness} onChange={(v) => u({ bitterness: v })} />
-        <ScoreSlider label="Баланс" value={d.balance} onChange={(v) => u({ balance: v })} />
-        <ScoreSlider label="Чистота чашки" value={d.cleanCup} onChange={(v) => u({ cleanCup: v })} />
-        <ScoreSlider label="Послевкусие" value={d.aftertaste} onChange={(v) => u({ aftertaste: v })} />
+        <ScoreSlider label={copy.metrics.aroma} value={d.aromaScore} onChange={(v) => u({ aromaScore: v })} />
+        <ScoreSlider label={copy.metrics.flavor} value={d.flavorScore} onChange={(v) => u({ flavorScore: v })} />
+        <ScoreSlider label={copy.metrics.acidity} value={d.acidity} onChange={(v) => u({ acidity: v })} />
+        <ScoreSlider label={copy.metrics.sweetness} value={d.sweetness} onChange={(v) => u({ sweetness: v })} />
+        <ScoreSlider label={copy.metrics.body} value={d.body} onChange={(v) => u({ body: v })} />
+        <ScoreSlider label={copy.metrics.bitterness} value={d.bitterness} onChange={(v) => u({ bitterness: v })} />
+        <ScoreSlider label={copy.metrics.balance} value={d.balance} onChange={(v) => u({ balance: v })} />
+        <ScoreSlider label={copy.metrics.cleanCup} value={d.cleanCup} onChange={(v) => u({ cleanCup: v })} />
+        <ScoreSlider label={copy.metrics.aftertaste} value={d.aftertaste} onChange={(v) => u({ aftertaste: v })} />
       </div>
 
       <div className="coffee-panel rounded-[24px] p-4">
         <div className="flex items-start justify-between gap-3 mb-2">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Профиль чашки</p>
-            <p className="text-[12px] text-muted-foreground mt-1">Диаграмма обновляется сразу при изменении оценок.</p>
+            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">{copy.wizard.cupProfile}</p>
+            <p className="text-[12px] text-muted-foreground mt-1">{copy.wizard.cupProfileHint}</p>
           </div>
           <span className="text-[10px] text-muted-foreground/50 font-semibold">LIVE</span>
         </div>
@@ -485,14 +484,14 @@ function Step3({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
           compact
           size={250}
           metrics={[
-            { label: 'Аромат', value: d.aromaScore },
-            { label: 'Вкус', value: d.flavorScore },
-            { label: 'Кислотность', value: d.acidity },
-            { label: 'Сладость', value: d.sweetness },
-            { label: 'Тело', value: d.body },
-            { label: 'Баланс', value: d.balance },
-            { label: 'Чистота', value: d.cleanCup },
-            { label: 'Послевкусие', value: d.aftertaste },
+            { label: copy.metrics.aroma, value: d.aromaScore },
+            { label: copy.metrics.flavor, value: d.flavorScore },
+            { label: copy.metrics.acidity, value: d.acidity },
+            { label: copy.metrics.sweetness, value: d.sweetness },
+            { label: copy.metrics.body, value: d.body },
+            { label: copy.metrics.balance, value: d.balance },
+            { label: copy.metrics.clean, value: d.cleanCup },
+            { label: copy.metrics.aftertaste, value: d.aftertaste },
           ]}
         />
       </div>
@@ -500,8 +499,8 @@ function Step3({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
       <div className="bg-primary/[0.07] border border-primary/20 rounded-[24px] p-5 space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Итоговый балл</p>
-            <p className="text-[12px] text-muted-foreground mt-1">Можно выставить вручную или рассчитать из сенсорного профиля.</p>
+            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">{copy.wizard.finalScore}</p>
+            <p className="text-[12px] text-muted-foreground mt-1">{copy.wizard.finalScoreHint}</p>
           </div>
           <button
             type="button"
@@ -512,10 +511,10 @@ function Step3({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
             }}
             className="px-3 py-2 rounded-full border border-primary/25 bg-primary/10 text-primary text-[11px] font-semibold whitespace-nowrap"
           >
-            Рассчитать
+            {copy.wizard.calculate}
           </button>
         </div>
-        <ScoreSlider label="Общая оценка" value={d.overallScore}
+        <ScoreSlider label={copy.wizard.overallScore} value={d.overallScore}
           onChange={(v) => u({ overallScore: v })} min={50} max={100} large />
       </div>
     </div>
@@ -525,18 +524,19 @@ function Step3({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
 // ─── Step 4 — Flavor ──────────────────────────────────────────────────────────
 
 function Step4({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void }) {
+  const { copy, language } = useTastingCopy();
   const MAX = 3;
 
   return (
     <div className="space-y-5">
-      <CoachHint title="Правило трёх дескрипторов">
-        Выбери три доминирующие ноты: одну для аромата, одну для основного вкуса и одну для послевкусия. Частые вкусы CoffeeMind запомнит и поднимет выше.
+      <CoachHint title={copy.wizard.flavorTipTitle}>
+        {copy.wizard.flavorTip}
       </CoachHint>
 
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] font-semibold text-foreground">Главные ноты чашки</p>
-          <p className="text-muted-foreground text-[12px] mt-0.5">Ищи по названию или двигайся от группы к конкретному вкусу.</p>
+          <p className="text-[13px] font-semibold text-foreground">{copy.wizard.mainNotes}</p>
+          <p className="text-muted-foreground text-[12px] mt-0.5">{copy.wizard.mainNotesHint}</p>
         </div>
         <motion.span
           key={d.topThreeDescriptors.length}
@@ -566,7 +566,7 @@ function Step4({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
                   className={`${bg} ${text} ${ring} ring-1 flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full`}
                 >
                   <span className="text-[9px] opacity-55">{index + 1}</span>
-                  {descriptor}
+                  {localizeFlavor(descriptor, language)}
                   <X size={9} strokeWidth={2.5} className="opacity-50 ml-0.5" />
                 </button>
               );
@@ -582,13 +582,13 @@ function Step4({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
       />
 
       <div className="border-t border-white/[0.05] pt-5">
-        <Field label="Свои и дополнительные дескрипторы">
+        <Field label={copy.wizard.customDescriptors}>
           <TagInput
             tags={d.additionalDescriptors}
             onChange={(v) => u({ additionalDescriptors: v })}
-            placeholder="Введи вкус и нажми Enter…"
+            placeholder={copy.wizard.descriptorPlaceholder}
           />
-          <p className="text-[10px] text-muted-foreground/40 mt-1.5">Здесь можно сохранить необычные или очень конкретные ассоциации без ограничения.</p>
+          <p className="text-[10px] text-muted-foreground/40 mt-1.5">{copy.wizard.descriptorHint}</p>
         </Field>
       </div>
     </div>
@@ -598,23 +598,24 @@ function Step4({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
 // ─── Step 5 — Notes & Photo ───────────────────────────────────────────────────
 
 function Step5({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void }) {
+  const { copy } = useTastingCopy();
   return (
     <div className="space-y-6">
-      <CoachHint title="Что писать в заметках">
-        Контекст часто важнее длинного описания: что удивило, что хочется проверить в рецепте, как чашка менялась после остывания.
+      <CoachHint title={copy.wizard.notesTipTitle}>
+        {copy.wizard.notesTip}
       </CoachHint>
 
-      <Field label="Заметки дегустации">
+      <Field label={copy.wizard.tastingNotes}>
         <Textarea
           value={d.notes}
           onChange={(e) => u({ notes: e.target.value })}
-          placeholder="Опиши контекст, что удивило, что хочется изменить в рецепте в следующий раз…"
+          placeholder={copy.wizard.notesPlaceholder}
           className="bg-card/60 border-white/[0.08] focus-visible:ring-primary/40 min-h-[120px] resize-none rounded-xl text-[16px]"
         />
       </Field>
 
       <div>
-        <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50 mb-3">Фото карточки</p>
+        <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50 mb-3">{copy.wizard.cardPhoto}</p>
         <div className="grid grid-cols-3 gap-2">
           {CURATED_PHOTOS.map((photoId) => {
             const url = `https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=240&q=70`;
@@ -646,7 +647,7 @@ function Step5({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
         {d.photoUrl && (
           <button type="button" onClick={() => u({ photoUrl: '' })}
             className="mt-2 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors">
-            Убрать фото
+            {copy.wizard.removePhoto}
           </button>
         )}
       </div>
@@ -656,7 +657,8 @@ function Step5({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
 
 // ─── Step 6 — Summary ─────────────────────────────────────────────────────────
 
-function Step6({ d, onSave, isSaving, saveError, saveLabel = 'Сохранить дегустацию' }: { d: WizardData; onSave: () => void; isSaving: boolean; saveError: string; saveLabel?: string }) {
+function Step6({ d, onSave, isSaving, saveError, saveLabel }: { d: WizardData; onSave: () => void; isSaving: boolean; saveError: string; saveLabel: string }) {
+  const { copy, language } = useTastingCopy();
   const flag = countryToFlag(d.country);
   const photo = d.photoUrl || getCardPhoto('preview');
   const scoreColor = d.overallScore >= 90 ? 'text-emerald-300' : d.overallScore >= 80 ? 'text-amber-300' : 'text-foreground/70';
@@ -667,8 +669,8 @@ function Step6({ d, onSave, isSaving, saveError, saveLabel = 'Сохранить
 
   return (
     <div className="space-y-5 pb-4">
-      <CoachHint title="Следующий шаг">
-        Проверь запись. После сохранения CoffeeMind откроет AI Coach и задаст вопросы, которые помогут точнее описать эту чашку.
+      <CoachHint title={copy.wizard.summaryTipTitle}>
+        {copy.wizard.summaryTip}
       </CoachHint>
 
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
@@ -690,7 +692,7 @@ function Step6({ d, onSave, isSaving, saveError, saveLabel = 'Сохранить
                 <span className="text-[7px] uppercase tracking-widest text-white/35 mt-0.5">pts</span>
           </div>
           <div className="absolute left-4 right-4 bottom-4">
-            <h3 className="font-serif text-[1.65rem] font-medium text-foreground">{d.coffeeName || 'Без названия'}</h3>
+            <h3 className="font-serif text-[1.65rem] font-medium text-foreground">{d.coffeeName || copy.wizard.untitled}</h3>
             {d.roaster && <p className="text-[12px] text-white/60 mt-0.5">{d.roaster}</p>}
           </div>
         </div>
@@ -718,10 +720,10 @@ function Step6({ d, onSave, isSaving, saveError, saveLabel = 'Сохранить
 
           <div className="grid grid-cols-2 gap-x-5 gap-y-2.5">
             {([
-              { label: 'Аромат', v: d.aromaScore }, { label: 'Вкус', v: d.flavorScore },
-              { label: 'Кислотность', v: d.acidity }, { label: 'Сладость', v: d.sweetness },
-              { label: 'Тело', v: d.body }, { label: 'Горечь', v: d.bitterness },
-              { label: 'Баланс', v: d.balance }, { label: 'Послевкусие', v: d.aftertaste },
+              { label: copy.metrics.aroma, v: d.aromaScore }, { label: copy.metrics.flavor, v: d.flavorScore },
+              { label: copy.metrics.acidity, v: d.acidity }, { label: copy.metrics.sweetness, v: d.sweetness },
+              { label: copy.metrics.body, v: d.body }, { label: copy.metrics.bitterness, v: d.bitterness },
+              { label: copy.metrics.balance, v: d.balance }, { label: copy.metrics.aftertaste, v: d.aftertaste },
             ] as { label: string; v: number }[]).map(({ label, v }) => (
               <div key={label}>
                 <div className="flex justify-between text-[9px] mb-1">
@@ -739,7 +741,7 @@ function Step6({ d, onSave, isSaving, saveError, saveLabel = 'Сохранить
             <div className="flex flex-wrap gap-1.5">
               {d.topThreeDescriptors.map((desc) => {
                 const { bg, text, ring } = flavorChipStyle(desc);
-                return <span key={desc} className={`${bg} ${text} ${ring} text-[11px] font-medium px-2.5 py-1 rounded-full ring-1`}>{desc}</span>;
+                return <span key={desc} className={`${bg} ${text} ${ring} text-[11px] font-medium px-2.5 py-1 rounded-full ring-1`}>{localizeFlavor(desc, language)}</span>;
               })}
               {d.additionalDescriptors.map((desc) => (
                 <span key={desc} className="bg-white/5 text-muted-foreground text-[11px] font-medium px-2.5 py-1 rounded-full ring-1 ring-white/10">{desc}</span>
@@ -757,14 +759,14 @@ function Step6({ d, onSave, isSaving, saveError, saveLabel = 'Сохранить
         className="w-full bg-primary text-primary-foreground h-14 rounded-full font-semibold text-[15px] shadow-[0_4px_28px_rgba(217,163,95,0.3)]"
         data-testid="btn-save-tasting"
       >
-        {isSaving ? 'Сохраняем…' : saveLabel}
+        {isSaving ? copy.wizard.saving : saveLabel}
       </motion.button>
 
       {saveError && (
         <p role="alert" className="text-center text-[12px] text-red-400 px-3">{saveError}</p>
       )}
 
-      <p className="text-center text-[10px] text-muted-foreground/25 pb-2">Сохраняется локально на этом устройстве</p>
+      <p className="text-center text-[10px] text-muted-foreground/25 pb-2">{copy.wizard.localSave}</p>
     </div>
   );
 }
@@ -772,6 +774,7 @@ function Step6({ d, onSave, isSaving, saveError, saveLabel = 'Сохранить
 // ─── Wizard shell ─────────────────────────────────────────────────────────────
 
 export default function AddTasting() {
+  const { copy } = useTastingCopy();
   const { id } = useParams<{ id?: string }>();
   const isEditing = Boolean(id);
   const [, setLocation] = useLocation();
@@ -1014,7 +1017,7 @@ export default function AddTasting() {
       }
     } catch (error) {
       console.error('Failed to save tasting:', error);
-      setSaveError('Не удалось сохранить дегустацию. Обнови страницу и попробуй ещё раз.');
+      setSaveError(copy.wizard.saveError);
       setIsSaving(false);
     }
   };
@@ -1026,7 +1029,7 @@ export default function AddTasting() {
       case 3: return <Step3 d={data} u={update} />;
       case 4: return <Step4 d={data} u={update} />;
       case 5: return <Step5 d={data} u={update} />;
-      case 6: return <Step6 d={data} onSave={handleSave} isSaving={isSaving} saveError={saveError} saveLabel={isEditing ? 'Сохранить изменения' : 'Сохранить дегустацию'} />;
+      case 6: return <Step6 d={data} onSave={handleSave} isSaving={isSaving} saveError={saveError} saveLabel={isEditing ? copy.wizard.saveChanges : copy.wizard.saveTasting} />;
       default: return null;
     }
   };
@@ -1045,7 +1048,7 @@ export default function AddTasting() {
         <AnimatePresence mode="wait">
           <motion.h1 key={step} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
             className="text-[10px] uppercase tracking-widest font-bold text-primary">
-            {isEditing ? 'Редактирование' : 'Новая дегустация'}
+            {isEditing ? copy.wizard.editing : copy.wizard.newTasting}
           </motion.h1>
         </AnimatePresence>
 
@@ -1113,7 +1116,7 @@ export default function AddTasting() {
                   : 'bg-card/50 text-muted-foreground/35 cursor-not-allowed'
               }`}
               data-testid="btn-wizard-next">
-              {step === 5 ? 'Проверить' : 'Продолжить'}
+              {step === 5 ? copy.wizard.review : copy.wizard.continue}
               {canGoNext && <ChevronRight size={17} />}
             </motion.button>
           </motion.div>

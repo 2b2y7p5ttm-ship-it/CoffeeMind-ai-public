@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronLeft, Search, Star, X } from 'lucide-react';
+import { fill, localizeFlavor, useTastingCopy } from '@/lib/tastingI18n';
 
 export interface FlavorWheelProps {
   selected: string[];
@@ -120,9 +121,10 @@ function readFrequency(): Record<string, number> {
   }
 }
 
-const normalize = (value: string) => value.trim().toLocaleLowerCase('ru-RU');
+const normalize = (value: string, locale: string) => value.trim().toLocaleLowerCase(locale);
 
 export function FlavorWheel({ selected, onChange, maxSelected = 3 }: FlavorWheelProps) {
+  const { copy, locale, language } = useTastingCopy();
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [favorites, setFavorites] = useState<string[]>(() => readStringArray(FAVORITES_KEY));
@@ -135,10 +137,13 @@ export function FlavorWheel({ selected, onChange, maxSelected = 3 }: FlavorWheel
   }, []);
 
   const searchResults = useMemo(() => {
-    const needle = normalize(query);
+    const needle = normalize(query, locale);
     if (!needle) return [];
-    return allDescriptors.filter((descriptor) => normalize(descriptor).includes(needle)).slice(0, 24);
-  }, [allDescriptors, query]);
+    return allDescriptors.filter((descriptor) => {
+      const localized = localizeFlavor(descriptor, language);
+      return normalize(descriptor, locale).includes(needle) || normalize(localized, locale).includes(needle);
+    }).slice(0, 24);
+  }, [allDescriptors, language, locale, query]);
 
   const suggested = useMemo(() => {
     const candidates = Array.from(new Set([...favorites, ...Object.keys(frequency)]));
@@ -196,7 +201,7 @@ export function FlavorWheel({ selected, onChange, maxSelected = 3 }: FlavorWheel
         >
           <span className="flex items-center gap-2 text-[13px] font-medium">
             {isSelected && <Check size={13} strokeWidth={3} />}
-            {descriptor}
+            {localizeFlavor(descriptor, language)}
           </span>
           <span
             role="button"
@@ -210,7 +215,7 @@ export function FlavorWheel({ selected, onChange, maxSelected = 3 }: FlavorWheel
               }
             }}
             className={`p-1 -mr-1 rounded-full ${isFavorite ? 'text-amber-300' : 'text-muted-foreground/30'}`}
-            aria-label={isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'}
+            aria-label={isFavorite ? copy.wheel.removeFavorite : copy.wheel.addFavorite}
           >
             <Star size={13} fill={isFavorite ? 'currentColor' : 'none'} />
           </span>
@@ -226,7 +231,7 @@ export function FlavorWheel({ selected, onChange, maxSelected = 3 }: FlavorWheel
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Найти вкус: бергамот, клубника…"
+          placeholder={copy.wheel.search}
           className="w-full h-12 rounded-2xl bg-card/60 border border-white/[0.08] pl-10 pr-10 text-[14px] outline-none focus:border-primary/35 focus:ring-2 focus:ring-primary/15"
         />
         {query && (
@@ -239,31 +244,31 @@ export function FlavorWheel({ selected, onChange, maxSelected = 3 }: FlavorWheel
       <AnimatePresence mode="wait">
         {query ? (
           <motion.div key="search" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-2">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold">Результаты поиска</p>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold">{copy.wheel.results}</p>
             {searchResults.length ? (
               <div className="grid grid-cols-2 gap-2">{searchResults.map((descriptor) => descriptorButton(descriptor))}</div>
             ) : (
-              <div className="rounded-2xl border border-white/[0.06] bg-card/35 px-4 py-5 text-center text-[12px] text-muted-foreground">Ничего не найдено. Добавь свой дескриптор ниже.</div>
+              <div className="rounded-2xl border border-white/[0.06] bg-card/35 px-4 py-5 text-center text-[12px] text-muted-foreground">{copy.wheel.empty}</div>
             )}
           </motion.div>
         ) : activeGroup ? (
           <motion.div key={activeGroup.id} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} className="space-y-4">
             <button type="button" onClick={() => setActiveGroupId(null)} className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground">
-              <ChevronLeft size={16} /> Все категории
+              <ChevronLeft size={16} /> {copy.wheel.back}
             </button>
             <div className={`rounded-[24px] border p-4 ${activeGroup.classes.panel} ${activeGroup.classes.border}`}>
               <div className="flex items-center gap-3">
                 <span className="text-3xl">{activeGroup.emoji}</span>
                 <div>
-                  <p className={`font-serif text-xl ${activeGroup.classes.text}`}>{activeGroup.label}</p>
-                  <p className="text-[11px] text-white/35 mt-0.5">Выбери до {maxSelected} главных нот</p>
+                  <p className={`font-serif text-xl ${activeGroup.classes.text}`}>{localizeFlavor(activeGroup.label, language)}</p>
+                  <p className="text-[11px] text-white/35 mt-0.5">{fill(copy.wheel.chooseUpTo, { count: maxSelected })}</p>
                 </div>
               </div>
             </div>
             <div className="space-y-5">
               {activeGroup.families.map((family) => (
                 <section key={family.label}>
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/45 font-semibold mb-2">{family.label}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/45 font-semibold mb-2">{localizeFlavor(family.label, language)}</p>
                   <div className="grid grid-cols-2 gap-2">{family.descriptors.map((descriptor) => descriptorButton(descriptor, activeGroup.classes))}</div>
                 </section>
               ))}
@@ -275,13 +280,13 @@ export function FlavorWheel({ selected, onChange, maxSelected = 3 }: FlavorWheel
               <section>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Star size={12} className="text-amber-300" fill="currentColor" />
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold">Избранное и частые</p>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold">{copy.wheel.suggested}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-2">{suggested.map((descriptor) => descriptorButton(descriptor))}</div>
               </section>
             )}
             <section>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold mb-2">Вкусовые группы</p>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold mb-2">{copy.wheel.groups}</p>
               <div className="grid grid-cols-2 gap-3">
                 {FLAVOR_GROUPS.map((group) => {
                   const count = group.families.reduce((sum, family) => sum + family.descriptors.length, 0);
@@ -295,8 +300,8 @@ export function FlavorWheel({ selected, onChange, maxSelected = 3 }: FlavorWheel
                       className={`relative min-h-[116px] rounded-[24px] border p-4 text-left overflow-hidden ${group.classes.panel} ${group.classes.border}`}
                     >
                       <span className="text-2xl">{group.emoji}</span>
-                      <p className={`mt-2 text-[13px] leading-tight font-semibold ${group.classes.text}`}>{group.label}</p>
-                      <p className="mt-1 text-[9px] text-white/30">{count} дескрипторов</p>
+                      <p className={`mt-2 text-[13px] leading-tight font-semibold ${group.classes.text}`}>{localizeFlavor(group.label, language)}</p>
+                      <p className="mt-1 text-[9px] text-white/30">{fill(copy.wheel.descriptorCount, { count })}</p>
                       {selectedInGroup > 0 && (
                         <span className="absolute top-3 right-3 min-w-6 h-6 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center">{selectedInGroup}</span>
                       )}

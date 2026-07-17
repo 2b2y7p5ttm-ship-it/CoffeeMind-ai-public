@@ -1,4 +1,5 @@
 import { motion, useReducedMotion } from 'framer-motion';
+import { useTastingCopy } from '@/lib/tastingI18n';
 
 interface FlavorRadarMetric {
   label: string;
@@ -29,6 +30,7 @@ function polygonPoints(metrics: FlavorRadarMetric[], radius: number, cx: number,
 }
 
 export function FlavorRadar({ metrics, size = 280, compact = false }: FlavorRadarProps) {
+  const { copy } = useTastingCopy();
   const safeMetrics = metrics.length >= 3 ? metrics : [];
   const reduceMotion = useReducedMotion();
   if (!safeMetrics.length) return null;
@@ -46,7 +48,7 @@ export function FlavorRadar({ metrics, size = 280, compact = false }: FlavorRada
         viewBox={`0 0 ${size} ${size}`}
         className="w-full max-w-[320px] overflow-visible"
         role="img"
-        aria-label="Радиальный профиль вкуса"
+        aria-label={copy.wizard.cupProfile}
       >
         <defs>
           <linearGradient id="flavorRadarFill" x1="0" y1="0" x2="1" y2="1">
