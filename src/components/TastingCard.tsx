@@ -9,6 +9,7 @@ import { countryToFlag, getCardPhoto, flavorChipStyle } from '@/lib/coffeeUtils'
 import { BrewMethodIcon } from './BrewMethodIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { localizeProcessing } from '@/lib/processingI18n';
+import { localizeBrewMethod } from '@/lib/brewMethodI18n';
 
 // ─── Compat helpers ───────────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ export function TastingCard({ tasting, index = 0 }: TastingCardProps) {
   const photo = tasting.photoUrl || getCardPhoto(tasting.id);
   const processing = localizeProcessing(getProcessing(tasting), language);
   const brewMethod = getBrewMethod(tasting);
+  const brewMethodLabel = localizeBrewMethod(brewMethod, language);
   const descriptors = getDescriptors(tasting);
 
   const scoreColor =
@@ -144,7 +146,7 @@ export function TastingCard({ tasting, index = 0 }: TastingCardProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <BrewMethodIcon method={brewMethod} size={14} className="text-primary/65" />
-                <span className="text-[11px] font-medium">{brewMethod || '—'}</span>
+                <span className="text-[11px] font-medium">{brewMethodLabel || '—'}</span>
               </div>
 
               <div className="flex items-center gap-1">

@@ -14,6 +14,7 @@ import { FlavorWheel } from '@/components/FlavorWheel';
 import { CURATED_PHOTOS, flavorChipStyle, countryToFlag, getCardPhoto } from '@/lib/coffeeUtils';
 import { localizeFlavor, useTastingCopy } from '@/lib/tastingI18n';
 import { localizeProcessing } from '@/lib/processingI18n';
+import { BREW_METHOD_VALUES, canonicalizeBrewMethod, localizeBrewMethod } from '@/lib/brewMethodI18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,7 +71,7 @@ function tastingToWizardData(tasting: Tasting): WizardData {
     elevationMeters: tasting.elevationMeters || '',
     harvestYear: tasting.harvestYear || '',
     lotNumber: tasting.lotNumber || '',
-    brewMethod: tasting.brewMethod || tasting.brewingMethod || 'V60',
+    brewMethod: canonicalizeBrewMethod(tasting.brewMethod || tasting.brewingMethod || 'V60'),
     doseGrams: tasting.doseGrams || tasting.dose || '',
     beverageWeightGrams: tasting.beverageWeightGrams || tasting.yield || '',
     brewTimeSeconds: tasting.brewTimeSeconds || tasting.time || '',
@@ -152,7 +153,7 @@ function clearTastingDraft(storageKey = DRAFT_STORAGE_KEY) {
 
 const STEP_ICONS = [Coffee, Droplets, Wind, Sparkles, NotebookPen, Brain] as const;
 const PROCESS_OPTIONS = ['Washed', 'Natural', 'Honey', 'Anaerobic', 'Infused', 'Wet-Hulled', 'Other'];
-const BREW_METHODS = ['V60', 'Espresso', 'AeroPress', 'Chemex', 'French Press', 'Kalita Wave', 'Moka Pot', 'Cold Brew', 'Clever Dripper'];
+const BREW_METHODS = [...BREW_METHOD_VALUES];
 
 // ─── Animation ────────────────────────────────────────────────────────────────
 
@@ -359,7 +360,7 @@ function Step1({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
 // ─── Step 2 — Brewing ─────────────────────────────────────────────────────────
 
 function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void }) {
-  const { copy } = useTastingCopy();
+  const { copy, language } = useTastingCopy();
   const ratio = d.doseGrams && d.beverageWeightGrams && Number(d.doseGrams) > 0
     ? (Number(d.beverageWeightGrams) / Number(d.doseGrams)).toFixed(1)
     : null;
@@ -371,7 +372,7 @@ function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
       </CoachHint>
 
       <Field label={copy.wizard.brewMethod}>
-        <PillRow options={BREW_METHODS} value={d.brewMethod} onChange={(v) => u({ brewMethod: v })} />
+        <PillRow options={BREW_METHODS} value={d.brewMethod} onChange={(v) => u({ brewMethod: v })} getLabel={(method) => localizeBrewMethod(method, language)} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
@@ -713,7 +714,7 @@ function Step6({ d, onSave, isSaving, saveError, saveLabel }: { d: WizardData; o
               )}
               {d.brewMethod && (
                 <span className="inline-flex items-center gap-1 bg-white/5 text-muted-foreground text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/10">
-                  {d.brewMethod}
+                  {localizeBrewMethod(d.brewMethod, language)}
                 </span>
               )}
               {ratio && (
@@ -981,7 +982,7 @@ export default function AddTasting() {
         elevationMeters: data.elevationMeters,
         harvestYear: data.harvestYear,
         lotNumber: data.lotNumber,
-        brewMethod: data.brewMethod,
+        brewMethod: canonicalizeBrewMethod(data.brewMethod),
         doseGrams: data.doseGrams,
         beverageWeightGrams: data.beverageWeightGrams,
         brewTimeSeconds: data.brewTimeSeconds,

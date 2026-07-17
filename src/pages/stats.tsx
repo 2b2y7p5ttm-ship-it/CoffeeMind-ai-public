@@ -9,6 +9,7 @@ import { generateTasteInsights } from '@/lib/intelligence/insights';
 import { flavorChipStyle } from '@/lib/coffeeUtils';
 import { localizeFlavor } from '@/lib/tastingI18n';
 import { localizeProcessing } from '@/lib/processingI18n';
+import { localizeBrewMethod } from '@/lib/brewMethodI18n';
 import { fillSectionCopy, useSectionCopy } from '@/lib/sectionI18n';
 
 const TONE_CLASS = {
@@ -130,7 +131,7 @@ export default function Stats() {
       <motion.section {...reveal} className="grid gap-3">
         {profile.topCountries[0] && <div className="rounded-[22px] border border-border bg-card p-4 flex items-center gap-4"><MapPin className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">{statsCopy.favoriteOrigin}</p><p className="font-medium mt-1">{profile.topCountries[0].name} · {profile.topCountries[0].share}%</p></div></div>}
         {profile.topProcesses[0] && <div className="rounded-[22px] border border-border bg-card p-4 flex items-center gap-4"><Droplets className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">{statsCopy.favoriteProcess}</p><p className="font-medium mt-1">{localizeProcessing(profile.topProcesses[0].name, language)} · {profile.topProcesses[0].averageScore.toFixed(1)} {statsCopy.points}</p></div></div>}
-        {profile.topMethods[0] && <div className="rounded-[22px] border border-border bg-card p-4 flex items-center gap-4"><Coffee className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">{statsCopy.mainMethod}</p><p className="font-medium mt-1">{profile.topMethods[0].name}</p></div></div>}
+        {profile.topMethods[0] && <div className="rounded-[22px] border border-border bg-card p-4 flex items-center gap-4"><Coffee className="text-primary" /><div><p className="text-[10px] uppercase tracking-wider text-muted-foreground">{statsCopy.mainMethod}</p><p className="font-medium mt-1">{localizeBrewMethod(profile.topMethods[0].name, language)}</p></div></div>}
       </motion.section>
 
       {insights.length > 0 && (

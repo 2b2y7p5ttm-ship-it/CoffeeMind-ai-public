@@ -30,6 +30,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useLanguage, type AppLanguage } from '@/contexts/LanguageContext';
 import { localizeProcessing } from '@/lib/processingI18n';
+import { localizeBrewMethod } from '@/lib/brewMethodI18n';
 
 const DELETE_DELAY_MS = 5_000;
 const PAGE_SIZE = 36;
@@ -210,7 +211,7 @@ export default function Home() {
 
   const searchIndex = useMemo(() => tastings.map((tasting) => ({
     tasting,
-    searchText: `${tastingSearchText(tasting)} ${localizeProcessing(tasting.processing || tasting.process, language).toLocaleLowerCase(locale)}`,
+    searchText: `${tastingSearchText(tasting)} ${localizeProcessing(tasting.processing || tasting.process, language)} ${localizeBrewMethod(tasting.brewMethod || tasting.brewingMethod, language)}`.toLocaleLowerCase(locale),
   })), [language, locale, tastings]);
 
   const filtered = useMemo(() => searchIndex
@@ -468,6 +469,7 @@ export default function Home() {
                 options={filterOptions.methods}
                 selected={filters.method}
                 onSelect={(method) => updateFilters({ method })}
+                formatOption={(method) => localizeBrewMethod(method, language)}
               />
             </motion.div>
           )}
@@ -477,7 +479,7 @@ export default function Home() {
           <div className="cm-journal-active-filters">
             {filters.country && <button type="button" onClick={() => updateFilters({ country: '' })}>{filters.country}<X size={12} /></button>}
             {filters.processing && <button type="button" onClick={() => updateFilters({ processing: '' })}>{localizeProcessing(filters.processing, language)}<X size={12} /></button>}
-            {filters.method && <button type="button" onClick={() => updateFilters({ method: '' })}>{filters.method}<X size={12} /></button>}
+            {filters.method && <button type="button" onClick={() => updateFilters({ method: '' })}>{localizeBrewMethod(filters.method, language)}<X size={12} /></button>}
           </div>
         )}
       </section>

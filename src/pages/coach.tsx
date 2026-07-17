@@ -5,6 +5,7 @@ import { useTastings, Tasting } from '@/hooks/useTastings';
 import { flavorChipStyle } from '@/lib/coffeeUtils';
 import { fill, localizeFlavor, useTastingCopy, type TastingCopy } from '@/lib/tastingI18n';
 import { localizeProcessing } from '@/lib/processingI18n';
+import { localizeBrewMethod } from '@/lib/brewMethodI18n';
 
 function getProcessing(t: Tasting): string {
   return t.processing || t.process || '';
@@ -63,6 +64,7 @@ export default function Coach() {
 
   const descriptors = getDescriptors(tasting);
   const processing = localizeProcessing(getProcessing(tasting), language);
+  const brewMethod = localizeBrewMethod(tasting.brewMethod || tasting.brewingMethod, language);
   const strengths = [
     tasting.balance >= 7 ? c.balanceGood : c.balanceImprove,
     tasting.cleanCup >= 7 ? c.cleanGood : c.cleanImprove,
@@ -98,7 +100,7 @@ export default function Coach() {
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground/45 font-bold mb-1">{c.saved}</p>
               <h2 className="font-serif text-2xl text-foreground">{tasting.coffeeName}</h2>
               <p className="text-[13px] text-muted-foreground mt-1">
-                {[tasting.country, processing, tasting.brewMethod || tasting.brewingMethod].filter(Boolean).join(' · ')}
+                {[tasting.country, processing, brewMethod].filter(Boolean).join(' · ')}
               </p>
             </div>
             <div className="rounded-2xl bg-background/70 border border-white/[0.07] px-3 py-2 text-center">
