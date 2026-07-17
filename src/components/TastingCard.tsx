@@ -7,6 +7,8 @@ import { Tasting } from '@/hooks/useTastings';
 import { useTastings } from '@/hooks/useTastings';
 import { countryToFlag, getCardPhoto, flavorChipStyle } from '@/lib/coffeeUtils';
 import { BrewMethodIcon } from './BrewMethodIcon';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { localizeProcessing } from '@/lib/processingI18n';
 
 // ─── Compat helpers ───────────────────────────────────────────────────────────
 
@@ -31,11 +33,12 @@ interface TastingCardProps {
 
 export function TastingCard({ tasting, index = 0 }: TastingCardProps) {
   const { updateTasting, deleteTasting } = useTastings();
+  const { language } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const flag = countryToFlag(tasting.country);
   const photo = tasting.photoUrl || getCardPhoto(tasting.id);
-  const processing = getProcessing(tasting);
+  const processing = localizeProcessing(getProcessing(tasting), language);
   const brewMethod = getBrewMethod(tasting);
   const descriptors = getDescriptors(tasting);
 

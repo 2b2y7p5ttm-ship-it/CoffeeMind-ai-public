@@ -4,6 +4,7 @@ import { ArrowRight, Brain, CheckCircle2, ChevronLeft, Coffee, Sparkles, Target 
 import { useTastings, Tasting } from '@/hooks/useTastings';
 import { flavorChipStyle } from '@/lib/coffeeUtils';
 import { fill, localizeFlavor, useTastingCopy, type TastingCopy } from '@/lib/tastingI18n';
+import { localizeProcessing } from '@/lib/processingI18n';
 
 function getProcessing(t: Tasting): string {
   return t.processing || t.process || '';
@@ -61,7 +62,7 @@ export default function Coach() {
   }
 
   const descriptors = getDescriptors(tasting);
-  const processing = getProcessing(tasting);
+  const processing = localizeProcessing(getProcessing(tasting), language);
   const strengths = [
     tasting.balance >= 7 ? c.balanceGood : c.balanceImprove,
     tasting.cleanCup >= 7 ? c.cleanGood : c.cleanImprove,

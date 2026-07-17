@@ -13,6 +13,7 @@ import { FlavorRadar } from '@/components/FlavorRadar';
 import { FlavorWheel } from '@/components/FlavorWheel';
 import { CURATED_PHOTOS, flavorChipStyle, countryToFlag, getCardPhoto } from '@/lib/coffeeUtils';
 import { localizeFlavor, useTastingCopy } from '@/lib/tastingI18n';
+import { localizeProcessing } from '@/lib/processingI18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -208,7 +209,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function PillRow({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
+function PillRow({ options, value, onChange, getLabel = (option) => option }: { options: string[]; value: string; onChange: (v: string) => void; getLabel?: (option: string) => string }) {
   return (
     <div className="flex flex-wrap gap-2">
       {options.map((opt) => (
@@ -222,7 +223,7 @@ function PillRow({ options, value, onChange }: { options: string[]; value: strin
               : 'bg-card/50 text-muted-foreground border-white/[0.08] hover:border-white/20 hover:text-foreground'
           }`}
         >
-          {opt}
+          {getLabel(opt)}
         </button>
       ))}
     </div>
@@ -269,7 +270,7 @@ function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (
 // ─── Step 1 — Coffee ──────────────────────────────────────────────────────────
 
 function Step1({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void }) {
-  const { copy } = useTastingCopy();
+  const { copy, language } = useTastingCopy();
   return (
     <div className="space-y-5">
       <CoachHint title={copy.wizard.coffeeTipTitle}>
@@ -339,7 +340,12 @@ function Step1({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
       </div>
 
       <Field label={copy.wizard.processing}>
-        <PillRow options={PROCESS_OPTIONS} value={d.processing} onChange={(v) => u({ processing: v })} />
+        <PillRow
+          options={PROCESS_OPTIONS}
+          value={d.processing}
+          onChange={(v) => u({ processing: v })}
+          getLabel={(value) => localizeProcessing(value, language)}
+        />
       </Field>
 
       <Field label={copy.wizard.roastDate}>
@@ -702,7 +708,7 @@ function Step6({ d, onSave, isSaving, saveError, saveLabel }: { d: WizardData; o
             <div className="flex flex-wrap gap-1.5 mt-2">
               {d.processing && (
                 <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border border-primary/20">
-                  {d.processing}
+                  {localizeProcessing(d.processing, language)}
                 </span>
               )}
               {d.brewMethod && (

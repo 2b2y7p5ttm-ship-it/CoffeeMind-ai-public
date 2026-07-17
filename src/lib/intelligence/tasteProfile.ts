@@ -34,19 +34,22 @@ export type TasteProfile = {
   topProcesses: RankedPreference[];
   topMethods: RankedPreference[];
   diversityIndex: number;
-  flavorFamilies: Array<{ name: string; value: number }>;
+  flavorFamilies: Array<{ id: FlavorFamilyId; name: string; value: number }>;
 };
 
-const FAMILY_KEYWORDS: Record<string, string[]> = {
-  'Ягоды': ['клубник', 'земляник', 'малин', 'черник', 'ежевик', 'смородин', 'вишн', 'ягод'],
-  'Цитрусы': ['лимон', 'лайм', 'апельсин', 'грейпфрут', 'бергамот', 'мандарин', 'цитрус'],
-  'Тропики': ['манго', 'ананас', 'маракуй', 'папай', 'банан', 'тропич'],
-  'Цветы': ['жасмин', 'роза', 'лаванд', 'цветоч', 'гибискус'],
-  'Сладость': ['карамел', 'мёд', 'мед', 'ванил', 'сахар', 'ирис', 'марципан'],
-  'Шоколад': ['шоколад', 'какао', 'брауни'],
-  'Орехи': ['орех', 'фундук', 'миндал', 'арахис'],
-  'Специи': ['кориц', 'гвоздик', 'перец', 'пряност', 'кардамон'],
-};
+type AppLanguage = 'ru' | 'en';
+type FlavorFamilyId = 'berries' | 'citrus' | 'tropical' | 'floral' | 'sweet' | 'chocolate' | 'nuts' | 'spice';
+
+const FAMILY_DEFINITIONS: Array<{ id: FlavorFamilyId; ru: string; en: string; keywords: string[] }> = [
+  { id: 'berries', ru: 'Ягоды', en: 'Berries', keywords: ['клубник', 'земляник', 'малин', 'черник', 'ежевик', 'смородин', 'вишн', 'ягод', 'strawberry', 'raspberry', 'blueberry', 'blackberry', 'currant', 'cherry', 'berry'] },
+  { id: 'citrus', ru: 'Цитрусы', en: 'Citrus', keywords: ['лимон', 'лайм', 'апельсин', 'грейпфрут', 'бергамот', 'мандарин', 'цитрус', 'lemon', 'lime', 'orange', 'grapefruit', 'bergamot', 'mandarin', 'citrus'] },
+  { id: 'tropical', ru: 'Тропики', en: 'Tropical fruit', keywords: ['манго', 'ананас', 'маракуй', 'папай', 'банан', 'тропич', 'mango', 'pineapple', 'passion fruit', 'papaya', 'banana', 'tropical'] },
+  { id: 'floral', ru: 'Цветы', en: 'Florals', keywords: ['жасмин', 'роза', 'лаванд', 'цветоч', 'гибискус', 'jasmine', 'rose', 'lavender', 'floral', 'hibiscus'] },
+  { id: 'sweet', ru: 'Сладость', en: 'Sweetness', keywords: ['карамел', 'мёд', 'мед', 'ванил', 'сахар', 'ирис', 'марципан', 'caramel', 'honey', 'vanilla', 'sugar', 'toffee', 'marzipan'] },
+  { id: 'chocolate', ru: 'Шоколад', en: 'Chocolate', keywords: ['шоколад', 'какао', 'брауни', 'chocolate', 'cocoa', 'cacao', 'brownie'] },
+  { id: 'nuts', ru: 'Орехи', en: 'Nuts', keywords: ['орех', 'фундук', 'миндал', 'арахис', 'nut', 'hazelnut', 'almond', 'peanut', 'walnut'] },
+  { id: 'spice', ru: 'Специи', en: 'Spices', keywords: ['кориц', 'гвоздик', 'перец', 'пряност', 'кардамон', 'cinnamon', 'clove', 'pepper', 'spice', 'cardamom'] },
+];
 
 function n(value: unknown, fallback = 0): number {
   const parsed = Number(value);
@@ -112,53 +115,57 @@ function rankDescriptors(tastings: Tasting[], limit = 10): RankedPreference[] {
     }));
 }
 
-function buildFlavorFamilies(tastings: Tasting[]): Array<{ name: string; value: number }> {
-  const counts = new Map<string, number>(Object.keys(FAMILY_KEYWORDS).map((name) => [name, 0]));
+function buildFlavorFamilies(tastings: Tasting[], language: AppLanguage): Array<{ id: FlavorFamilyId; name: string; value: number }> {
+  const counts = new Map<FlavorFamilyId, number>(FAMILY_DEFINITIONS.map((family) => [family.id, 0]));
   let totalMatches = 0;
   for (const tasting of tastings) {
     for (const descriptor of descriptors(tasting)) {
       const normalized = normalize(descriptor);
-      for (const [family, keywords] of Object.entries(FAMILY_KEYWORDS)) {
-        if (keywords.some((keyword) => normalized.includes(keyword))) {
-          counts.set(family, (counts.get(family) || 0) + 1);
+      for (const family of FAMILY_DEFINITIONS) {
+        if (family.keywords.some((keyword) => normalized.includes(keyword))) {
+          counts.set(family.id, (counts.get(family.id) || 0) + 1);
           totalMatches += 1;
           break;
         }
       }
     }
   }
-  return [...counts.entries()]
-    .map(([name, count]) => ({ name, value: totalMatches ? Math.round((count / totalMatches) * 100) : 0 }))
+  return FAMILY_DEFINITIONS
+    .map((family) => ({
+      id: family.id,
+      name: language === 'ru' ? family.ru : family.en,
+      value: totalMatches ? Math.round(((counts.get(family.id) || 0) / totalMatches) * 100) : 0,
+    }))
     .sort((a, b) => b.value - a.value);
 }
 
-function chooseArchetype(profile: Omit<TasteProfile, 'archetype'>): TasteArchetype {
+function chooseArchetype(profile: Omit<TasteProfile, 'archetype'>, language: AppLanguage): TasteArchetype {
   const family = profile.flavorFamilies[0];
   const uniqueCountries = new Set(profile.topCountries.map((item) => item.name)).size;
   const candidates: Array<{ score: number; archetype: Omit<TasteArchetype, 'confidence'> }> = [
     {
-      score: (family?.name === 'Ягоды' || family?.name === 'Тропики' ? family.value + 25 : 0) + profile.averages.sweetness * 2,
-      archetype: { id: 'fruit-explorer', title: 'Fruit Explorer', subtitle: 'Яркие, сочные и фруктовые чашки — твоя территория.', emoji: '🍓' },
+      score: (family?.id === 'berries' || family?.id === 'tropical' ? family.value + 25 : 0) + profile.averages.sweetness * 2,
+      archetype: { id: 'fruit-explorer', title: 'Fruit Explorer', subtitle: language === 'ru' ? 'Яркие, сочные и фруктовые чашки — твоя территория.' : 'Bright, juicy, fruit-forward cups are your territory.', emoji: '🍓' },
     },
     {
-      score: (family?.name === 'Шоколад' || family?.name === 'Орехи' || family?.name === 'Сладость' ? family.value + 25 : 0) + profile.averages.body * 2,
-      archetype: { id: 'sweet-classic', title: 'Sweet Classic', subtitle: 'Ты ценишь сладость, баланс и плотную текстуру.', emoji: '🍫' },
+      score: (family?.id === 'chocolate' || family?.id === 'nuts' || family?.id === 'sweet' ? family.value + 25 : 0) + profile.averages.body * 2,
+      archetype: { id: 'sweet-classic', title: 'Sweet Classic', subtitle: language === 'ru' ? 'Ты ценишь сладость, баланс и плотную текстуру.' : 'You value sweetness, balance, and a rich texture.', emoji: '🍫' },
     },
     {
-      score: (family?.name === 'Цветы' ? family.value + 35 : 0) + profile.averages.acidity,
-      archetype: { id: 'floral-hunter', title: 'Floral Hunter', subtitle: 'Тебя привлекают тонкие, чайные и цветочные профили.', emoji: '🌸' },
+      score: (family?.id === 'floral' ? family.value + 35 : 0) + profile.averages.acidity,
+      archetype: { id: 'floral-hunter', title: 'Floral Hunter', subtitle: language === 'ru' ? 'Тебя привлекают тонкие, чайные и цветочные профили.' : 'You are drawn to delicate, tea-like, floral profiles.', emoji: '🌸' },
     },
     {
       score: profile.averages.acidity * 5 + Math.max(0, profile.averages.acidity - profile.averages.bitterness) * 3,
-      archetype: { id: 'acid-seeker', title: 'Acid Seeker', subtitle: 'Ты ищешь живую кислотность и сложную структуру чашки.', emoji: '⚡' },
+      archetype: { id: 'acid-seeker', title: 'Acid Seeker', subtitle: language === 'ru' ? 'Ты ищешь живую кислотность и сложную структуру чашки.' : 'You seek vivid acidity and a complex cup structure.', emoji: '⚡' },
     },
     {
       score: profile.diversityIndex * 0.7 + uniqueCountries * 6,
-      archetype: { id: 'terroir-collector', title: 'Terroir Collector', subtitle: 'Тебе важны происхождение, различия и исследование новых регионов.', emoji: '🌍' },
+      archetype: { id: 'terroir-collector', title: 'Terroir Collector', subtitle: language === 'ru' ? 'Тебе важны происхождение, различия и исследование новых регионов.' : 'Origin, contrast, and discovering new regions matter to you.', emoji: '🌍' },
     },
     {
       score: profile.averages.balance * 4 + profile.averages.aftertaste * 2,
-      archetype: { id: 'balanced-observer', title: 'Balanced Observer', subtitle: 'Ты ищешь гармонию и оцениваешь чашку целиком.', emoji: '⚖️' },
+      archetype: { id: 'balanced-observer', title: 'Balanced Observer', subtitle: language === 'ru' ? 'Ты ищешь гармонию и оцениваешь чашку целиком.' : 'You look for harmony and judge the cup as a whole.', emoji: '⚖️' },
     },
   ];
   candidates.sort((a, b) => b.score - a.score);
@@ -168,16 +175,24 @@ function chooseArchetype(profile: Omit<TasteProfile, 'archetype'>): TasteArchety
   return { ...winner.archetype, confidence };
 }
 
-export function buildTasteProfile(tastings: Tasting[]): TasteProfile {
+export function buildTasteProfile(tastings: Tasting[], language: AppLanguage = 'ru'): TasteProfile {
   const sampleSize = tastings.length;
   const maturity = Math.min(100, Math.round((sampleSize / 20) * 100));
-  const maturityLabel = sampleSize < 5
-    ? 'Первые сигналы'
-    : sampleSize < 10
-      ? 'Профиль формируется'
-      : sampleSize < 20
-        ? 'Устойчивые закономерности'
-        : 'Coffee DNA сформировано';
+  const maturityLabel = language === 'ru'
+    ? sampleSize < 5
+      ? 'Первые сигналы'
+      : sampleSize < 10
+        ? 'Профиль формируется'
+        : sampleSize < 20
+          ? 'Устойчивые закономерности'
+          : 'Coffee DNA сформировано'
+    : sampleSize < 5
+      ? 'First signals'
+      : sampleSize < 10
+        ? 'Profile taking shape'
+        : sampleSize < 20
+          ? 'Stable patterns'
+          : 'Coffee DNA complete';
 
   const allDescriptors = tastings.flatMap(descriptors).map(normalize).filter(Boolean);
   const uniqueSignals = new Set([
@@ -205,8 +220,8 @@ export function buildTasteProfile(tastings: Tasting[]): TasteProfile {
     topProcesses: rankBy(tastings, (t) => t.processing || t.process),
     topMethods: rankBy(tastings, (t) => t.brewMethod || t.brewingMethod),
     diversityIndex,
-    flavorFamilies: buildFlavorFamilies(tastings),
+    flavorFamilies: buildFlavorFamilies(tastings, language),
   };
 
-  return { ...base, archetype: chooseArchetype(base) };
+  return { ...base, archetype: chooseArchetype(base, language) };
 }

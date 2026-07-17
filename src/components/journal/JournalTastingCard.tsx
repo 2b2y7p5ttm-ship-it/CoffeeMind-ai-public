@@ -5,6 +5,7 @@ import { Tasting } from '@/hooks/useTastings';
 import { countryToFlag } from '@/lib/coffeeUtils';
 import { getTasteTone, getTastingDescriptors } from '@/lib/journal';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { localizeProcessing } from '@/lib/processingI18n';
 
 interface Props {
   tasting: Tasting;
@@ -32,7 +33,7 @@ function highlightText(text: string, query: string | undefined, locale: string) 
 }
 
 export function JournalTastingCard({ tasting, onOpen, onEdit, onDelete, onFavorite, onShare, onPreview, searchQuery }: Props) {
-  const { locale, t } = useLanguage();
+  const { language, locale, t } = useLanguage();
   const x = useMotionValue(0);
   const leftOpacity = useTransform(x, [0, 62], [0, 1]);
   const rightOpacity = useTransform(x, [-62, 0], [1, 0]);
@@ -42,7 +43,7 @@ export function JournalTastingCard({ tasting, onOpen, onEdit, onDelete, onFavori
   const [openSide, setOpenSide] = useState<'left' | 'right' | null>(null);
   const descriptors = getTastingDescriptors(tasting).slice(0, 3);
   const tone = getTasteTone(tasting);
-  const processing = tasting.processing || tasting.process;
+  const processing = localizeProcessing(tasting.processing || tasting.process, language);
   const method = tasting.brewMethod || tasting.brewingMethod;
   const flag = countryToFlag(tasting.country);
   const origin = [tasting.country, processing].filter(Boolean).join(' · ') || t('journal.chapterFallback');

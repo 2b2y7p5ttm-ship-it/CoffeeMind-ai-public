@@ -5,6 +5,7 @@ import { ScoreBar } from '@/components/ScoreBar';
 import { FlavorRadar } from '@/components/FlavorRadar';
 import { flavorChipStyle, countryToFlag } from '@/lib/coffeeUtils';
 import { localizeFlavor, useTastingCopy } from '@/lib/tastingI18n';
+import { localizeProcessing } from '@/lib/processingI18n';
 
 // ─── Compat helpers ───────────────────────────────────────────────────────────
 
@@ -91,7 +92,7 @@ export default function TastingDetail() {
     }
   };
 
-  const processing = getProcessing(tasting);
+  const processing = localizeProcessing(getProcessing(tasting), language);
   const brewMethod = getBrewMethod(tasting);
   const dryAroma = getDryAroma(tasting);
   const firstImpression = getFirstImpression(tasting);

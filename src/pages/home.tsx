@@ -29,6 +29,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useLanguage, type AppLanguage } from '@/contexts/LanguageContext';
+import { localizeProcessing } from '@/lib/processingI18n';
 
 const DELETE_DELAY_MS = 5_000;
 const PAGE_SIZE = 36;
@@ -105,9 +106,10 @@ interface FilterGroupProps {
   options: string[];
   selected: string;
   onSelect: (value: string) => void;
+  formatOption?: (value: string) => string;
 }
 
-function FilterGroup({ icon, label, options, selected, onSelect }: FilterGroupProps) {
+function FilterGroup({ icon, label, options, selected, onSelect, formatOption = (value) => value }: FilterGroupProps) {
   const { t } = useLanguage();
   return (
     <div className="cm-journal-filter-group">
@@ -128,7 +130,7 @@ function FilterGroup({ icon, label, options, selected, onSelect }: FilterGroupPr
                 onClick={() => onSelect(isSelected ? '' : option)}
               >
                 {isSelected && <Check size={13} />}
-                {option}
+                {formatOption(option)}
               </button>
             );
           })}
@@ -208,8 +210,8 @@ export default function Home() {
 
   const searchIndex = useMemo(() => tastings.map((tasting) => ({
     tasting,
-    searchText: tastingSearchText(tasting),
-  })), [tastings]);
+    searchText: `${tastingSearchText(tasting)} ${localizeProcessing(tasting.processing || tasting.process, language).toLocaleLowerCase(locale)}`,
+  })), [language, locale, tastings]);
 
   const filtered = useMemo(() => searchIndex
     .filter(({ tasting, searchText }) => {
@@ -274,7 +276,7 @@ export default function Home() {
   }, [setFilters]);
 
   const share = async (tasting: Tasting) => {
-    const text = `${tasting.coffeeName} — ${tasting.overallScore}/100\n${[tasting.country, tasting.processing || tasting.process].filter(Boolean).join(' · ')}`;
+    const text = `${tasting.coffeeName} — ${tasting.overallScore}/100\n${[tasting.country, localizeProcessing(tasting.processing || tasting.process, language)].filter(Boolean).join(' · ')}`;
     if (navigator.share) await navigator.share({ title: tasting.coffeeName, text }).catch(() => undefined);
     else await navigator.clipboard?.writeText(text);
   };
@@ -458,6 +460,7 @@ export default function Home() {
                 options={filterOptions.processings}
                 selected={filters.processing}
                 onSelect={(processing) => updateFilters({ processing })}
+                formatOption={(processing) => localizeProcessing(processing, language)}
               />
               <FilterGroup
                 icon={<Coffee size={15} />}
@@ -473,7 +476,7 @@ export default function Home() {
         {hasActiveFilters && (
           <div className="cm-journal-active-filters">
             {filters.country && <button type="button" onClick={() => updateFilters({ country: '' })}>{filters.country}<X size={12} /></button>}
-            {filters.processing && <button type="button" onClick={() => updateFilters({ processing: '' })}>{filters.processing}<X size={12} /></button>}
+            {filters.processing && <button type="button" onClick={() => updateFilters({ processing: '' })}>{localizeProcessing(filters.processing, language)}<X size={12} /></button>}
             {filters.method && <button type="button" onClick={() => updateFilters({ method: '' })}>{filters.method}<X size={12} /></button>}
           </div>
         )}
