@@ -1,15 +1,14 @@
 import { Link, useLocation } from 'wouter';
-import { Home, Dna, User, BookOpen, GraduationCap } from 'lucide-react';
+import { Home, Dna, User, Plus, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const NAV_ITEMS = [
-  // CoffeeMind stays tasting-first: Journal and Coffee DNA are the primary product areas.
   { href: '/', icon: Home, labelKey: 'nav.journal' as const },
-  { href: '/stats', icon: Dna, labelKey: 'nav.dna' as const },
+  { href: '/add', icon: Plus, labelKey: 'nav.add' as const, shortLabel: true },
+  { href: '/stats', icon: Dna, labelKey: 'nav.dna' as const, primary: true },
   { href: '/books', icon: BookOpen, labelKey: 'nav.books' as const },
-  { href: '/learning', icon: GraduationCap, labelKey: 'nav.learning' as const },
   { href: '/profile', icon: User, labelKey: 'nav.profile' as const },
 ];
 
@@ -17,7 +16,27 @@ export function BottomNav() {
   const [location] = useLocation();
   const hidden = useScrollDirection();
   const { t } = useLanguage();
-  if (location === '/add' || location.startsWith('/tasting/') || location.startsWith('/coach/') || location.startsWith('/learning/') || ['/settings','/install','/welcome','/share','/backup','/account','/admin','/achievements','/challenges','/exams'].includes(location)) return null;
+
+  if (
+    location === '/add' ||
+    location.startsWith('/tasting/') ||
+    location.startsWith('/coach/') ||
+    location.startsWith('/learning') ||
+    [
+      '/settings',
+      '/install',
+      '/welcome',
+      '/share',
+      '/backup',
+      '/account',
+      '/admin',
+      '/achievements',
+      '/challenges',
+      '/exams',
+    ].includes(location)
+  ) {
+    return null;
+  }
 
   return (
     <motion.div
@@ -28,12 +47,36 @@ export function BottomNav() {
     >
       <div className="w-full max-w-[430px] px-3 pointer-events-auto">
         <div className="cm-bottom-nav iphone-nav-panel">
-          <div className="grid grid-cols-5 items-center h-[64px] px-2">
+          <div className="grid h-[64px] grid-cols-5 items-center px-2">
             {NAV_ITEMS.map((item) => {
               const active = item.href === '/' ? location === '/' : location.startsWith(item.href);
               const Icon = item.icon;
+              const fullLabel = t(item.labelKey);
+              const visibleLabel = item.shortLabel ? fullLabel.split(' ')[0] : fullLabel;
+
+              if (item.primary) {
+                return (
+                  <Link key={item.href} href={item.href} aria-label={fullLabel}>
+                    <motion.div
+                      whileTap={{ scale: 0.88 }}
+                      className="relative flex h-[64px] min-w-0 flex-col items-center justify-center"
+                    >
+                      <motion.div
+                        animate={{ y: active ? -3 : 0, scale: active ? 1.04 : 1 }}
+                        className="cm-nav-fab relative"
+                      >
+                        <Icon size={25} strokeWidth={active ? 2.5 : 2.15} />
+                      </motion.div>
+                      <span className="cm-nav-label absolute bottom-1 z-10 font-bold text-primary">
+                        {visibleLabel}
+                      </span>
+                    </motion.div>
+                  </Link>
+                );
+              }
+
               return (
-                <Link key={item.href} href={item.href} aria-label={t(item.labelKey)}>
+                <Link key={item.href} href={item.href} aria-label={fullLabel}>
                   <motion.div
                     whileTap={{ scale: 0.86 }}
                     className="relative flex min-w-0 flex-col items-center justify-center gap-1 py-2"
@@ -49,11 +92,17 @@ export function BottomNav() {
                       <Icon
                         size={21}
                         strokeWidth={active ? 2.4 : 1.7}
-                        className={`relative z-10 transition-colors ${active ? 'text-primary' : 'text-muted-foreground'}`}
+                        className={`relative z-10 transition-colors ${
+                          active ? 'text-primary' : 'text-muted-foreground'
+                        }`}
                       />
                     </motion.div>
-                    <span className={`cm-nav-label relative z-10 font-semibold ${active ? 'text-primary' : 'text-muted-foreground'}`}>
-                      {t(item.labelKey)}
+                    <span
+                      className={`cm-nav-label relative z-10 font-semibold ${
+                        active ? 'text-primary' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {visibleLabel}
                     </span>
                   </motion.div>
                 </Link>
