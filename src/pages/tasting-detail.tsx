@@ -7,6 +7,7 @@ import { flavorChipStyle, countryToFlag } from '@/lib/coffeeUtils';
 import { localizeFlavor, useTastingCopy } from '@/lib/tastingI18n';
 import { localizeProcessing } from '@/lib/processingI18n';
 import { localizeBrewMethod } from '@/lib/brewMethodI18n';
+import { localizeCountry, localizeVariety } from '@/lib/coffeeReferenceI18n';
 
 // ─── Compat helpers ───────────────────────────────────────────────────────────
 
@@ -101,6 +102,8 @@ export default function TastingDetail() {
   const topDescriptors = getTopDescriptors(tasting);
   const additionalDescriptors = tasting.additionalDescriptors || [];
   const flag = countryToFlag(tasting.country);
+  const country = localizeCountry(tasting.country, language);
+  const variety = localizeVariety(tasting.variety, language);
 
   const scoreColor = tasting.overallScore >= 90
     ? 'text-emerald-300' : tasting.overallScore >= 80
@@ -168,7 +171,7 @@ export default function TastingDetail() {
             {flag && (
               <div className="flex items-center gap-1.5 mb-2">
                 <span className="text-base leading-none">{flag}</span>
-                <span className="text-[11px] text-white/60 font-medium">{tasting.country}</span>
+                <span className="text-[11px] text-white/60 font-medium">{country}</span>
               </div>
             )}
             <h1 className="font-serif text-[1.9rem] font-medium leading-tight text-foreground truncate">
@@ -207,7 +210,7 @@ export default function TastingDetail() {
           <SectionHeader icon={Coffee} label={c.originBean} />
           <div className="bg-card/60 border border-white/[0.06] rounded-2xl overflow-hidden">
             <InfoRow label={c.roaster}   value={tasting.roaster} />
-            <InfoRow label={c.country}   value={tasting.country} />
+            <InfoRow label={c.country}   value={country} />
             <InfoRow label={c.region}    value={tasting.region} />
             <InfoRow label={c.farm}      value={tasting.farm} />
             <InfoRow label={c.producer} value={tasting.producer} />
@@ -215,7 +218,7 @@ export default function TastingDetail() {
             <InfoRow label={c.elevation} value={tasting.elevationMeters ? `${tasting.elevationMeters} m` : ''} />
             <InfoRow label={c.harvest} value={tasting.harvestYear} />
             <InfoRow label={c.lot} value={tasting.lotNumber} />
-            <InfoRow label={c.variety}   value={tasting.variety} />
+            <InfoRow label={c.variety}   value={variety} />
             <InfoRow label={c.processing} value={processing} />
             <InfoRow label={c.roastDate} value={tasting.roastDate} />
           </div>

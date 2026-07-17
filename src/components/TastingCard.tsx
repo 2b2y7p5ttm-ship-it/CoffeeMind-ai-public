@@ -10,6 +10,7 @@ import { BrewMethodIcon } from './BrewMethodIcon';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { localizeProcessing } from '@/lib/processingI18n';
 import { localizeBrewMethod } from '@/lib/brewMethodI18n';
+import { localizeCountry } from '@/lib/coffeeReferenceI18n';
 
 // ─── Compat helpers ───────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ export function TastingCard({ tasting, index = 0 }: TastingCardProps) {
               <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/40 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10">
                 <span className="text-base leading-none">{flag}</span>
                 {tasting.country && (
-                  <span className="text-[10px] font-medium text-white/80 tracking-wide">{tasting.country}</span>
+                  <span className="text-[10px] font-medium text-white/80 tracking-wide">{localizeCountry(tasting.country, language)}</span>
                 )}
               </div>
             )}

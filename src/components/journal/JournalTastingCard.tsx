@@ -7,6 +7,7 @@ import { getTasteTone, getTastingDescriptors } from '@/lib/journal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { localizeProcessing } from '@/lib/processingI18n';
 import { localizeBrewMethod } from '@/lib/brewMethodI18n';
+import { localizeCountry } from '@/lib/coffeeReferenceI18n';
 
 interface Props {
   tasting: Tasting;
@@ -47,7 +48,7 @@ export function JournalTastingCard({ tasting, onOpen, onEdit, onDelete, onFavori
   const processing = localizeProcessing(tasting.processing || tasting.process, language);
   const method = localizeBrewMethod(tasting.brewMethod || tasting.brewingMethod, language);
   const flag = countryToFlag(tasting.country);
-  const origin = [tasting.country, processing].filter(Boolean).join(' · ') || t('journal.chapterFallback');
+  const origin = [localizeCountry(tasting.country, language), processing].filter(Boolean).join(' · ') || t('journal.chapterFallback');
   const secondary = [tasting.roaster, tasting.region].filter(Boolean).join(' · ');
 
   const clearHold = () => {

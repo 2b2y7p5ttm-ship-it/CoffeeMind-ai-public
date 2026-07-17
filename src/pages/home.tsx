@@ -31,6 +31,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useLanguage, type AppLanguage } from '@/contexts/LanguageContext';
 import { localizeProcessing } from '@/lib/processingI18n';
 import { localizeBrewMethod } from '@/lib/brewMethodI18n';
+import { canonicalizeCountry, localizeCountry, localizeVariety } from '@/lib/coffeeReferenceI18n';
 
 const DELETE_DELAY_MS = 5_000;
 const PAGE_SIZE = 36;
@@ -204,14 +205,15 @@ export default function Home() {
   const journalOwner = useMemo(() => language === 'ru' ? toGenitiveName(nickname) : nickname, [language, nickname]);
 
   const filterOptions = useMemo(() => ({
-    countries: uniqueValues(tastings.map((tasting) => tasting.country), locale),
+    countries: uniqueValues(tastings.map((tasting) => canonicalizeCountry(tasting.country)), locale)
+      .sort((left, right) => localizeCountry(left, language).localeCompare(localizeCountry(right, language), locale)),
     processings: uniqueValues(tastings.map((tasting) => tasting.processing || tasting.process), locale),
     methods: uniqueValues(tastings.map((tasting) => tasting.brewMethod || tasting.brewingMethod), locale),
-  }), [locale, tastings]);
+  }), [language, locale, tastings]);
 
   const searchIndex = useMemo(() => tastings.map((tasting) => ({
     tasting,
-    searchText: `${tastingSearchText(tasting)} ${localizeProcessing(tasting.processing || tasting.process, language)} ${localizeBrewMethod(tasting.brewMethod || tasting.brewingMethod, language)}`.toLocaleLowerCase(locale),
+    searchText: `${tastingSearchText(tasting)} ${localizeCountry(tasting.country, language)} ${localizeVariety(tasting.variety, language)} ${localizeProcessing(tasting.processing || tasting.process, language)} ${localizeBrewMethod(tasting.brewMethod || tasting.brewingMethod, language)}`.toLocaleLowerCase(locale),
   })), [language, locale, tastings]);
 
   const filtered = useMemo(() => searchIndex
@@ -220,7 +222,7 @@ export default function Home() {
       if (deferredQuery && !searchText.includes(deferredQuery)) return false;
       if (filters.favorites && !tasting.favorite) return false;
       if (filters.highScore && Number(tasting.overallScore || 0) < 85) return false;
-      if (filters.country && tasting.country !== filters.country) return false;
+      if (filters.country && canonicalizeCountry(tasting.country) !== canonicalizeCountry(filters.country)) return false;
       if (filters.processing && (tasting.processing || tasting.process || '') !== filters.processing) return false;
       if (filters.method && (tasting.brewMethod || tasting.brewingMethod || '') !== filters.method) return false;
       return true;
@@ -277,7 +279,7 @@ export default function Home() {
   }, [setFilters]);
 
   const share = async (tasting: Tasting) => {
-    const text = `${tasting.coffeeName} — ${tasting.overallScore}/100\n${[tasting.country, localizeProcessing(tasting.processing || tasting.process, language)].filter(Boolean).join(' · ')}`;
+    const text = `${tasting.coffeeName} — ${tasting.overallScore}/100\n${[localizeCountry(tasting.country, language), localizeProcessing(tasting.processing || tasting.process, language)].filter(Boolean).join(' · ')}`;
     if (navigator.share) await navigator.share({ title: tasting.coffeeName, text }).catch(() => undefined);
     else await navigator.clipboard?.writeText(text);
   };
@@ -452,8 +454,9 @@ export default function Home() {
                 icon={<Globe2 size={15} />}
                 label={t('journal.country')}
                 options={filterOptions.countries}
-                selected={filters.country}
+                selected={canonicalizeCountry(filters.country)}
                 onSelect={(country) => updateFilters({ country })}
+                formatOption={(country) => localizeCountry(country, language)}
               />
               <FilterGroup
                 icon={<Leaf size={15} />}
@@ -477,7 +480,7 @@ export default function Home() {
 
         {hasActiveFilters && (
           <div className="cm-journal-active-filters">
-            {filters.country && <button type="button" onClick={() => updateFilters({ country: '' })}>{filters.country}<X size={12} /></button>}
+            {filters.country && <button type="button" onClick={() => updateFilters({ country: '' })}>{localizeCountry(filters.country, language)}<X size={12} /></button>}
             {filters.processing && <button type="button" onClick={() => updateFilters({ processing: '' })}>{localizeProcessing(filters.processing, language)}<X size={12} /></button>}
             {filters.method && <button type="button" onClick={() => updateFilters({ method: '' })}>{localizeBrewMethod(filters.method, language)}<X size={12} /></button>}
           </div>

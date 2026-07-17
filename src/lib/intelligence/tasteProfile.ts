@@ -1,3 +1,4 @@
+import { canonicalizeCountry } from '@/lib/coffeeReferenceI18n';
 import type { Tasting } from '@/hooks/useTastings';
 
 export type TasteArchetype = {
@@ -196,7 +197,7 @@ export function buildTasteProfile(tastings: Tasting[], language: AppLanguage = '
 
   const allDescriptors = tastings.flatMap(descriptors).map(normalize).filter(Boolean);
   const uniqueSignals = new Set([
-    ...tastings.map((t) => normalize(t.country)).filter(Boolean),
+    ...tastings.map((t) => normalize(canonicalizeCountry(t.country))).filter(Boolean),
     ...tastings.map((t) => normalize(t.processing || t.process)).filter(Boolean),
     ...allDescriptors,
   ]).size;
@@ -216,7 +217,7 @@ export function buildTasteProfile(tastings: Tasting[], language: AppLanguage = '
       overallScore: avg(tastings.map((t) => n(t.overallScore))),
     },
     topDescriptors: rankDescriptors(tastings),
-    topCountries: rankBy(tastings, (t) => t.country),
+    topCountries: rankBy(tastings, (t) => canonicalizeCountry(t.country)),
     topProcesses: rankBy(tastings, (t) => t.processing || t.process),
     topMethods: rankBy(tastings, (t) => t.brewMethod || t.brewingMethod),
     diversityIndex,

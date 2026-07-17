@@ -5,6 +5,7 @@ import { Tasting } from '@/hooks/useTastings';
 import { getTasteTone, getTastingDescriptors } from '@/lib/journal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { localizeProcessing } from '@/lib/processingI18n';
+import { localizeCountry } from '@/lib/coffeeReferenceI18n';
 
 export function JournalPreview({ tasting, onClose, onOpen }: { tasting: Tasting | null; onClose: () => void; onOpen: () => void }) {
   const { language, t } = useLanguage();
@@ -21,7 +22,7 @@ export function JournalPreview({ tasting, onClose, onOpen }: { tasting: Tasting 
             <button className="cm-preview-close" onClick={onClose} aria-label={t('common.close')}><X size={18} /></button>
             <p className="cm-preview-kicker">{t('journal.previewKicker')}</p>
             <h2>{tasting.coffeeName || t('journal.untitled')}</h2>
-            <p className="cm-preview-origin">{[tasting.country, tasting.region, localizeProcessing(tasting.processing || tasting.process, language)].filter(Boolean).join(' · ')}</p>
+            <p className="cm-preview-origin">{[localizeCountry(tasting.country, language), tasting.region, localizeProcessing(tasting.processing || tasting.process, language)].filter(Boolean).join(' · ')}</p>
             <div className="cm-preview-score"><strong>{tasting.overallScore}</strong><span>{t('journal.overallScore')}</span></div>
             <div className="cm-journal-chips">{getTastingDescriptors(tasting).slice(0, 5).map((item) => <span key={item}>{item}</span>)}</div>
             {tasting.firstImpression && <blockquote>«{tasting.firstImpression}»</blockquote>}

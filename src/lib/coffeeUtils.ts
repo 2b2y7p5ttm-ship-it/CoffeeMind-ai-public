@@ -1,3 +1,5 @@
+import { canonicalizeCountry } from '@/lib/coffeeReferenceI18n';
+
 // ─── Country → Emoji Flag ────────────────────────────────────────────────────
 const COUNTRY_CODES: Record<string, string> = {
   'ethiopia': 'ET', 'colombia': 'CO', 'brazil': 'BR', 'kenya': 'KE',
@@ -9,12 +11,13 @@ const COUNTRY_CODES: Record<string, string> = {
   'jamaica': 'JM', 'hawaii': 'US', 'united states': 'US', 'ecuador': 'EC',
   'thailand': 'TH', 'laos': 'LA', 'cambodia': 'KH', 'timor-leste': 'TL',
   'congo': 'CD', 'cameroon': 'CM', 'zimbabwe': 'ZW', 'malawi': 'MW',
-  'zambia': 'ZM', 'papua new guinea': 'PG',
+  'zambia': 'ZM', 'papua new guinea': 'PG', 'dr congo': 'CD',
+  'dominican republic': 'DO', 'puerto rico': 'PR', 'philippines': 'PH',
 };
 
 export function countryToFlag(country: string): string {
   if (!country) return '';
-  const code = COUNTRY_CODES[country.toLowerCase().trim()];
+  const code = COUNTRY_CODES[canonicalizeCountry(country).toLowerCase().trim()];
   if (!code) return '';
   return code
     .toUpperCase()

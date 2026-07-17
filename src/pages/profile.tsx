@@ -7,6 +7,7 @@ import { useTastings, Tasting } from '@/hooks/useTastings';
 import { Input } from '@/components/ui/input';
 import { FLAVOR_WHEEL } from '@/lib/coffeeUtils';
 import { fillSectionCopy, useSectionCopy } from '@/lib/sectionI18n';
+import { canonicalizeCountry } from '@/lib/coffeeReferenceI18n';
 
 function getInitials(name: string): string {
   return name.split(' ').map((word) => word[0]).join('').toUpperCase().slice(0, 2);
@@ -97,7 +98,7 @@ type AchievementId = 'first' | 'five' | 'world' | 'high' | 'perfect' | 'method' 
 const ACHIEVEMENTS: Array<{ id: AchievementId; icon: string; check: (tastings: Tasting[]) => boolean }> = [
   { id: 'first', icon: '☕', check: (tastings) => tastings.length >= 1 },
   { id: 'five', icon: '🌱', check: (tastings) => tastings.length >= 5 },
-  { id: 'world', icon: '🌍', check: (tastings) => new Set(tastings.filter((item) => item.country).map((item) => item.country)).size >= 5 },
+  { id: 'world', icon: '🌍', check: (tastings) => new Set(tastings.filter((item) => item.country).map((item) => canonicalizeCountry(item.country))).size >= 5 },
   { id: 'high', icon: '⭐', check: (tastings) => tastings.some((item) => item.overallScore >= 90) },
   { id: 'perfect', icon: '💎', check: (tastings) => tastings.some((item) => item.overallScore >= 95) },
   { id: 'method', icon: '⚗️', check: (tastings) => new Set(tastings.map(getBrewMethod).filter(Boolean)).size >= 4 },
@@ -132,7 +133,7 @@ export default function Profile() {
     ? [...tastings].sort((a, b) => b.overallScore - a.overallScore)[0]
     : null;
 
-  const uniqueCountries = new Set(tastings.filter((tasting) => tasting.country).map((tasting) => tasting.country)).size;
+  const uniqueCountries = new Set(tastings.filter((tasting) => tasting.country).map((tasting) => canonicalizeCountry(tasting.country))).size;
   const avgScore = count
     ? (tastings.reduce((sum, tasting) => sum + tasting.overallScore, 0) / count).toFixed(1)
     : '—';

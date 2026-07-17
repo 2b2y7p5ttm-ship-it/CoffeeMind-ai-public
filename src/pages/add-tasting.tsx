@@ -15,6 +15,7 @@ import { CURATED_PHOTOS, flavorChipStyle, countryToFlag, getCardPhoto } from '@/
 import { localizeFlavor, useTastingCopy } from '@/lib/tastingI18n';
 import { localizeProcessing } from '@/lib/processingI18n';
 import { BREW_METHOD_VALUES, canonicalizeBrewMethod, localizeBrewMethod } from '@/lib/brewMethodI18n';
+import { COUNTRY_VALUES, VARIETY_VALUES, canonicalizeCountry, canonicalizeVariety, localizeCountry, localizeVariety } from '@/lib/coffeeReferenceI18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,10 +61,10 @@ function tastingToWizardData(tasting: Tasting): WizardData {
   return {
     coffeeName: tasting.coffeeName || '',
     roaster: tasting.roaster || '',
-    country: tasting.country || '',
+    country: canonicalizeCountry(tasting.country || ''),
     region: tasting.region || '',
     farm: tasting.farm || '',
-    variety: tasting.variety || '',
+    variety: canonicalizeVariety(tasting.variety || ''),
     processing: tasting.processing || tasting.process || 'Washed',
     roastDate: tasting.roastDate || '',
     producer: tasting.producer || '',
@@ -292,8 +293,11 @@ function Step1({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={copy.wizard.country}>
-          <Input value={d.country} onChange={(e) => u({ country: e.target.value })}
-            placeholder={copy.wizard.placeholders.country} className={inputCls} />
+          <Input value={localizeCountry(d.country, language)} onChange={(e) => u({ country: canonicalizeCountry(e.target.value) })}
+            placeholder={copy.wizard.placeholders.country} className={inputCls} list="coffeemind-country-options" />
+          <datalist id="coffeemind-country-options">
+            {COUNTRY_VALUES.map((country) => <option key={country} value={localizeCountry(country, language)} />)}
+          </datalist>
         </Field>
         <Field label={copy.wizard.region}>
           <Input value={d.region} onChange={(e) => u({ region: e.target.value })}
@@ -307,8 +311,11 @@ function Step1({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
             placeholder={copy.wizard.placeholders.farm} className={inputCls} />
         </Field>
         <Field label={copy.wizard.variety}>
-          <Input value={d.variety} onChange={(e) => u({ variety: e.target.value })}
-            placeholder={copy.wizard.placeholders.variety} className={inputCls} />
+          <Input value={localizeVariety(d.variety, language)} onChange={(e) => u({ variety: canonicalizeVariety(e.target.value) })}
+            placeholder={copy.wizard.placeholders.variety} className={inputCls} list="coffeemind-variety-options" />
+          <datalist id="coffeemind-variety-options">
+            {VARIETY_VALUES.map((variety) => <option key={variety} value={localizeVariety(variety, language)} />)}
+          </datalist>
         </Field>
       </div>
 
@@ -691,7 +698,7 @@ function Step6({ d, onSave, isSaving, saveError, saveLabel }: { d: WizardData; o
           {flag && (
             <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/40 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10">
               <span className="text-base leading-none">{flag}</span>
-              {d.country && <span className="text-[10px] font-medium text-white/80">{d.country}</span>}
+              {d.country && <span className="text-[10px] font-medium text-white/80">{localizeCountry(d.country, language)}</span>}
             </div>
           )}
           <div className="absolute top-3 right-3 flex flex-col items-center bg-black/40 backdrop-blur-md rounded-2xl px-3 py-1.5 border border-white/10">
@@ -971,10 +978,10 @@ export default function AddTasting() {
       const payload = {
         coffeeName: data.coffeeName,
         roaster: data.roaster,
-        country: data.country,
+        country: canonicalizeCountry(data.country),
         region: data.region,
         farm: data.farm,
-        variety: data.variety,
+        variety: canonicalizeVariety(data.variety),
         processing: data.processing,
         roastDate: data.roastDate,
         producer: data.producer,
