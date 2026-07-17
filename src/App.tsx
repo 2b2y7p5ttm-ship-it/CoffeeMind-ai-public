@@ -18,11 +18,13 @@ import Backup from '@/pages/backup';
 import Account from '@/pages/account';
 import Admin from '@/pages/admin';
 import Achievements from '@/pages/achievements';
+import Challenges from '@/pages/challenges';
 import NotFound from '@/pages/not-found';
 import { BottomNav } from '@/components/BottomNav';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CloudSyncBridge } from '@/components/CloudSyncBridge';
 import { AchievementBridge } from '@/components/AchievementBridge';
+import { WeeklyChallengeBridge } from '@/components/WeeklyChallengeBridge';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { PageTransition } from '@/components/PageTransition';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -38,6 +40,7 @@ function App() {
       <TooltipProvider>
         <CloudSyncBridge />
         <AchievementBridge />
+        <WeeklyChallengeBridge />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
           <div className="min-h-[100dvh] bg-[hsl(var(--app-canvas))] text-foreground flex justify-center transition-colors duration-500">
             <div className="iphone-shell w-full max-w-[430px] relative min-h-[100dvh] bg-background sm:border-x sm:border-white/[0.04] sm:shadow-[0_0_80px_rgba(0,0,0,0.8)]">
@@ -59,6 +62,7 @@ function App() {
                 <Route path="/account" component={Account} />
                 <Route path="/admin" component={Admin} />
                 <Route path="/achievements" component={Achievements} />
+                <Route path="/challenges" component={Challenges} />
                 <Route component={NotFound} />
               </Switch>
               </PageTransition>

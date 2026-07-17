@@ -19,8 +19,9 @@ import { useBooks } from '@/hooks/useBooks';
 import { fillSystemCopy, useSystemCopy } from '@/lib/systemI18n';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { ACHIEVEMENTS_STORAGE_KEY } from '@/hooks/useAchievements';
+import { WEEKLY_CHALLENGES_STORAGE_KEY } from '@/hooks/useWeeklyChallenges';
 
-const BACKUP_VERSION = '2.3';
+const BACKUP_VERSION = '2.4';
 const TASTINGS_KEY = 'coffee_journal_tastings';
 const PROFILE_KEY = 'coffee_journal_profile';
 const BOOKS_KEY = 'coffeemind_book_ratings';
@@ -35,6 +36,7 @@ interface BackupPayload {
     profile: unknown;
     books: unknown[];
     achievements?: unknown;
+    weeklyChallenges?: unknown;
   };
 }
 
@@ -98,6 +100,7 @@ export default function Backup() {
   const { profile } = useProfile();
   const { books } = useBooks();
   const [achievementStore] = useLocalStorage<unknown>(ACHIEVEMENTS_STORAGE_KEY, null);
+  const [weeklyChallengeStore] = useLocalStorage<unknown>(WEEKLY_CHALLENGES_STORAGE_KEY, null);
   const { copy, locale } = useSystemCopy();
   const c = copy.backup;
   const fileRef = useRef<HTMLInputElement>(null);
@@ -114,8 +117,9 @@ export default function Backup() {
       profile,
       books,
       achievements: achievementStore,
+      weeklyChallenges: weeklyChallengeStore,
     },
-  }), [achievementStore, books, c.deviceNote, profile, tastings]);
+  }), [achievementStore, books, c.deviceNote, profile, tastings, weeklyChallengeStore]);
 
   const summary = [
     { label: c.summary.tastings, value: tastings.length },
@@ -168,6 +172,9 @@ export default function Backup() {
     localStorage.setItem(BOOKS_KEY, JSON.stringify(importPreview.data.books || []));
     if (importPreview.data.achievements) {
       localStorage.setItem(ACHIEVEMENTS_STORAGE_KEY, JSON.stringify(importPreview.data.achievements));
+    }
+    if (importPreview.data.weeklyChallenges) {
+      localStorage.setItem(WEEKLY_CHALLENGES_STORAGE_KEY, JSON.stringify(importPreview.data.weeklyChallenges));
     }
     setStatus(c.restored);
     setTimeout(() => window.location.assign('/'), 500);

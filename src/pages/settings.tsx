@@ -29,6 +29,7 @@ import { useLanguage, type LanguageMode } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveDisplayName } from '@/lib/profileIdentity';
 import { ACHIEVEMENTS_STORAGE_KEY } from '@/hooks/useAchievements';
+import { WEEKLY_CHALLENGES_STORAGE_KEY } from '@/hooks/useWeeklyChallenges';
 
 function Row({
   icon: Icon,
@@ -120,8 +121,16 @@ export default function Settings() {
           return null;
         }
       })(),
+      weeklyChallenges: (() => {
+        try {
+          const raw = localStorage.getItem(WEEKLY_CHALLENGES_STORAGE_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch {
+          return null;
+        }
+      })(),
       exportedAt: new Date().toISOString(),
-      version: '2.4',
+      version: '2.5',
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -139,6 +148,7 @@ export default function Settings() {
     localStorage.removeItem('coffee_journal_profile');
     localStorage.removeItem('coffeemind_book_ratings');
     localStorage.removeItem(ACHIEVEMENTS_STORAGE_KEY);
+    localStorage.removeItem(WEEKLY_CHALLENGES_STORAGE_KEY);
     window.location.reload();
   };
 
