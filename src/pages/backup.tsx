@@ -1,10 +1,22 @@
 import { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowDownToLine, ArrowUpFromLine, CheckCircle2, ChevronLeft, Copy, Database, FileJson, RefreshCcw, ShieldCheck, UploadCloud } from 'lucide-react';
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  CheckCircle2,
+  ChevronLeft,
+  Copy,
+  Database,
+  FileJson,
+  RefreshCcw,
+  ShieldCheck,
+  UploadCloud,
+} from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useTastings } from '@/hooks/useTastings';
 import { useProfile } from '@/hooks/useProfile';
 import { useBooks } from '@/hooks/useBooks';
+import { fillSystemCopy, useSystemCopy } from '@/lib/systemI18n';
 
 const BACKUP_VERSION = '2.2';
 const TASTINGS_KEY = 'coffee_journal_tastings';
@@ -23,42 +35,54 @@ interface BackupPayload {
   };
 }
 
+type FileReadMessages = {
+  invalidFile: string;
+  readError: string;
+  openError: string;
+};
+
 function downloadJson(payload: BackupPayload) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `coffeemind-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `coffeemind-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
 }
 
-function readJsonFile(file: File): Promise<BackupPayload> {
+function readJsonFile(file: File, messages: FileReadMessages): Promise<BackupPayload> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result));
         if (!parsed?.data || !Array.isArray(parsed.data.tastings)) {
-          reject(new Error('Файл не похож на резервную копию CoffeeMind.'));
+          reject(new Error(messages.invalidFile));
           return;
         }
         resolve(parsed as BackupPayload);
-      } catch {
-        reject(new Error('Не удалось прочитать JSON-файл.'));
+      } catch (error) {
+        reject(error instanceof Error && error.message === messages.invalidFile
+          ? error
+          : new Error(messages.readError));
       }
     };
-    reader.onerror = () => reject(new Error('Не удалось открыть файл.'));
+    reader.onerror = () => reject(new Error(messages.openError));
     reader.readAsText(file);
   });
 }
 
-function formatDate(value: string) {
+function formatDate(value: string, locale: string) {
   try {
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    return new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     }).format(new Date(value));
   } catch {
     return value;
@@ -70,58 +94,65 @@ export default function Backup() {
   const { tastings } = useTastings();
   const { profile } = useProfile();
   const { books } = useBooks();
+  const { copy, locale } = useSystemCopy();
+  const c = copy.backup;
   const fileRef = useRef<HTMLInputElement>(null);
-  const [status, setStatus] = useState<string>('');
+  const [status, setStatus] = useState('');
   const [importPreview, setImportPreview] = useState<BackupPayload | null>(null);
 
   const payload = useMemo<BackupPayload>(() => ({
     app: 'CoffeeMind AI',
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    deviceNote: 'Данные экспортированы из localStorage этого устройства.',
+    deviceNote: c.deviceNote,
     data: {
       tastings,
       profile,
       books,
     },
-  }), [tastings, profile, books]);
+  }), [books, c.deviceNote, profile, tastings]);
 
   const summary = [
-    { label: 'дегустаций', value: tastings.length },
-    { label: 'книг', value: books.length },
-    { label: 'профиль', value: profile.name || '—' },
+    { label: c.summary.tastings, value: tastings.length },
+    { label: c.summary.books, value: books.length },
+    { label: c.summary.profile, value: profile.name || '—' },
   ];
 
-  const handleExport = async () => {
+  const handleExport = () => {
     downloadJson(payload);
-    setStatus('Резервная копия создана. Сохрани JSON в iCloud Drive или Файлы.');
+    setStatus(c.exportSuccess);
   };
 
   const handleCopySummary = async () => {
     const text = [
-      'CoffeeMind AI backup summary',
-      `Tastings: ${tastings.length}`,
-      `Books: ${books.length}`,
-      `Profile: ${profile.name}`,
-      `Exported: ${payload.exportedAt}`,
+      c.summaryText.title,
+      `${c.summaryText.tastings}: ${tastings.length}`,
+      `${c.summaryText.books}: ${books.length}`,
+      `${c.summaryText.profile}: ${profile.name || '—'}`,
+      `${c.summaryText.exported}: ${formatDate(payload.exportedAt, locale)}`,
     ].join('\n');
+
     try {
       await navigator.clipboard.writeText(text);
-      setStatus('Сводка скопирована.');
+      setStatus(c.summaryCopied);
     } catch {
-      setStatus('Не удалось скопировать сводку в этом браузере.');
+      setStatus(c.summaryCopyError);
     }
   };
 
   const handleFile = async (file?: File) => {
     if (!file) return;
     try {
-      const parsed = await readJsonFile(file);
+      const parsed = await readJsonFile(file, {
+        invalidFile: c.invalidFile,
+        readError: c.readError,
+        openError: c.openError,
+      });
       setImportPreview(parsed);
-      setStatus('Файл прочитан. Проверь данные и нажми “Восстановить”.');
+      setStatus(c.fileReady);
     } catch (error) {
       setImportPreview(null);
-      setStatus(error instanceof Error ? error.message : 'Ошибка импорта.');
+      setStatus(error instanceof Error ? error.message : c.importError);
     }
   };
 
@@ -130,7 +161,7 @@ export default function Backup() {
     localStorage.setItem(TASTINGS_KEY, JSON.stringify(importPreview.data.tastings || []));
     localStorage.setItem(PROFILE_KEY, JSON.stringify(importPreview.data.profile || profile));
     localStorage.setItem(BOOKS_KEY, JSON.stringify(importPreview.data.books || []));
-    setStatus('Данные восстановлены. Приложение обновится сейчас.');
+    setStatus(c.restored);
     setTimeout(() => window.location.assign('/'), 500);
   };
 
@@ -140,7 +171,7 @@ export default function Backup() {
         <button
           onClick={() => setLocation('/settings')}
           className="w-10 h-10 mb-5 rounded-full bg-card/60 border border-white/[0.08] flex items-center justify-center text-muted-foreground"
-          aria-label="Назад"
+          aria-label={c.back}
         >
           <ChevronLeft size={20} />
         </button>
@@ -148,18 +179,16 @@ export default function Backup() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 rounded-full px-3 py-1.5 mb-4">
             <ShieldCheck size={14} />
-            <span className="text-[10px] uppercase tracking-widest font-bold">Data Vault</span>
+            <span className="text-[10px] uppercase tracking-widest font-bold">{c.badge}</span>
           </div>
-          <h1 className="font-serif text-[2.25rem] leading-[0.95] text-foreground mb-3">Резервная копия вкуса</h1>
-          <p className="text-muted-foreground text-[14px] leading-relaxed">
-            CoffeeMind хранит данные на устройстве. Перед реальными дегустациями сделай backup, чтобы не потерять журнал, Taste DNA и книжные оценки.
-          </p>
+          <h1 className="font-serif text-[2.25rem] leading-[0.95] text-foreground mb-3">{c.title}</h1>
+          <p className="text-muted-foreground text-[14px] leading-relaxed">{c.subtitle}</p>
         </motion.div>
       </header>
 
       <main className="px-4 space-y-4">
         <section className="rounded-[28px] bg-card/70 border border-white/[0.07] p-5">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold mb-4">Внутри backup</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold mb-4">{c.inside}</p>
           <div className="grid grid-cols-3 gap-3">
             {summary.map((item) => (
               <div key={item.label} className="rounded-[20px] bg-background/60 border border-white/[0.06] p-4 min-h-[86px] flex flex-col justify-between">
@@ -176,17 +205,17 @@ export default function Backup() {
               <ArrowDownToLine size={20} />
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">Экспорт</p>
-              <p className="text-[14px] text-foreground leading-relaxed">Скачай JSON-файл и сохрани его в iCloud Drive, Файлы или Telegram “Избранное”.</p>
+              <p className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">{c.exportTitle}</p>
+              <p className="text-[14px] text-foreground leading-relaxed">{c.exportText}</p>
             </div>
           </div>
           <button onClick={handleExport} className="w-full h-12 rounded-full bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2">
             <FileJson size={16} />
-            Скачать резервную копию
+            {c.download}
           </button>
           <button onClick={handleCopySummary} className="w-full h-11 rounded-full bg-white/[0.06] border border-white/[0.08] text-foreground text-[13px] font-semibold flex items-center justify-center gap-2">
             <Copy size={15} />
-            Скопировать сводку
+            {c.copySummary}
           </button>
         </section>
 
@@ -196,8 +225,8 @@ export default function Backup() {
               <ArrowUpFromLine size={20} />
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">Импорт</p>
-              <p className="text-[14px] text-muted-foreground leading-relaxed">Восстанови журнал из JSON-файла CoffeeMind. Текущие данные будут заменены.</p>
+              <p className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">{c.importTitle}</p>
+              <p className="text-[14px] text-muted-foreground leading-relaxed">{c.importText}</p>
             </div>
           </div>
 
@@ -210,7 +239,7 @@ export default function Backup() {
           />
           <button onClick={() => fileRef.current?.click()} className="w-full h-12 rounded-full bg-white/[0.06] border border-white/[0.08] text-foreground text-[13px] font-semibold flex items-center justify-center gap-2">
             <UploadCloud size={16} />
-            Выбрать JSON-файл
+            {c.chooseFile}
           </button>
 
           {importPreview && (
@@ -218,15 +247,19 @@ export default function Backup() {
               <div className="flex items-start gap-3">
                 <CheckCircle2 size={18} className="text-emerald-300 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-[13px] font-semibold text-foreground">Файл готов к восстановлению</p>
+                  <p className="text-[13px] font-semibold text-foreground">{c.ready}</p>
                   <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
-                    {importPreview.data.tastings?.length || 0} дегустаций · {importPreview.data.books?.length || 0} книг · экспорт: {formatDate(importPreview.exportedAt)}
+                    {fillSystemCopy(c.preview, {
+                      tastings: importPreview.data.tastings?.length || 0,
+                      books: importPreview.data.books?.length || 0,
+                      date: formatDate(importPreview.exportedAt, locale),
+                    })}
                   </p>
                 </div>
               </div>
               <button onClick={restoreBackup} className="w-full h-11 rounded-full bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2">
                 <RefreshCcw size={15} />
-                Восстановить данные
+                {c.restore}
               </button>
             </div>
           )}
@@ -234,13 +267,11 @@ export default function Backup() {
 
         <section className="rounded-[28px] bg-card/40 border border-white/[0.05] p-5 flex gap-3">
           <Database size={18} className="text-primary flex-shrink-0 mt-0.5" />
-          <p className="text-[12px] text-muted-foreground leading-relaxed">
-            В этой версии backup работает локально. Полная облачная синхронизация с аккаунтом — следующий большой этап после стабильного iPhone-приложения.
-          </p>
+          <p className="text-[12px] text-muted-foreground leading-relaxed">{c.localNote}</p>
         </section>
 
         {status && (
-          <p className="text-[12px] text-primary/90 text-center leading-relaxed px-5">{status}</p>
+          <p className="text-[12px] text-primary/90 text-center leading-relaxed px-5" role="status">{status}</p>
         )}
       </main>
     </div>

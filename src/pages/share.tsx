@@ -1,7 +1,21 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Check, ChevronLeft, Coffee, Copy, Database, ExternalLink, Link as LinkIcon, Share2, ShieldCheck, Smartphone, Users } from 'lucide-react';
+import {
+  BookOpen,
+  Check,
+  ChevronLeft,
+  Cloud,
+  Coffee,
+  Copy,
+  Database,
+  ExternalLink,
+  Link as LinkIcon,
+  Share2,
+  Smartphone,
+  Users,
+} from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useSystemCopy } from '@/lib/systemI18n';
 
 function getPublicUrl() {
   return window.location.origin + window.location.pathname.replace(/\/?$/, '/');
@@ -23,10 +37,13 @@ function InfoCard({ icon: Icon, title, text }: { icon: React.ElementType; title:
 
 export default function ShareApp() {
   const [, setLocation] = useLocation();
+  const { copy } = useSystemCopy();
+  const c = copy.share;
   const [copied, setCopied] = useState(false);
   const publicUrl = useMemo(() => getPublicUrl(), []);
+  const cardIcons = [Users, Coffee, BookOpen, Cloud, Smartphone, Database];
 
-  const copy = async () => {
+  const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(publicUrl);
       setCopied(true);
@@ -38,17 +55,18 @@ export default function ShareApp() {
 
   const nativeShare = async () => {
     if (!navigator.share) {
-      copy();
+      await copyLink();
       return;
     }
+
     try {
       await navigator.share({
         title: 'CoffeeMind AI',
-        text: 'Попробуй CoffeeMind AI — журнал дегустаций кофе, книжных оценок и Taste DNA.',
+        text: c.nativeText,
         url: publicUrl,
       });
     } catch {
-      // User cancelled native share.
+      // The user closed the native share sheet.
     }
   };
 
@@ -58,7 +76,7 @@ export default function ShareApp() {
         <button
           onClick={() => setLocation('/')}
           className="w-10 h-10 mb-5 rounded-full bg-card/60 border border-white/[0.08] flex items-center justify-center text-muted-foreground"
-          aria-label="Назад"
+          aria-label={c.back}
         >
           <ChevronLeft size={20} />
         </button>
@@ -66,12 +84,10 @@ export default function ShareApp() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 rounded-full px-3 py-1.5 mb-4">
             <Share2 size={14} />
-            <span className="text-[10px] uppercase tracking-widest font-bold">Share CoffeeMind</span>
+            <span className="text-[10px] uppercase tracking-widest font-bold">{c.badge}</span>
           </div>
-          <h1 className="font-serif text-[2.45rem] leading-[0.95] text-foreground mb-3">Отправь приложение другим людям</h1>
-          <p className="text-muted-foreground text-[14px] leading-relaxed">
-            Ссылка открывает тот же CoffeeMind AI, но каждый пользователь ведет свой журнал. Твои дегустации и книжные оценки остаются только на твоем устройстве.
-          </p>
+          <h1 className="font-serif text-[2.45rem] leading-[0.95] text-foreground mb-3">{c.title}</h1>
+          <p className="text-muted-foreground text-[14px] leading-relaxed">{c.subtitle}</p>
         </motion.div>
       </header>
 
@@ -82,29 +98,31 @@ export default function ShareApp() {
               <LinkIcon size={19} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">Публичная ссылка</p>
+              <p className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">{c.publicLink}</p>
               <p className="text-[13px] text-foreground/90 leading-relaxed break-all">{publicUrl}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <button onClick={copy} className="h-12 rounded-full bg-primary text-primary-foreground text-[13px] font-bold flex items-center justify-center gap-2">
+            <button onClick={copyLink} className="h-12 rounded-full bg-primary text-primary-foreground text-[13px] font-bold flex items-center justify-center gap-2">
               {copied ? <Check size={16} /> : <Copy size={16} />}
-              {copied ? 'Скопировано' : 'Копировать'}
+              {copied ? c.copied : c.copy}
             </button>
             <button onClick={nativeShare} className="h-12 rounded-full bg-white/[0.06] border border-white/[0.08] text-foreground text-[13px] font-semibold flex items-center justify-center gap-2">
               <ExternalLink size={16} />
-              Поделиться
+              {c.share}
             </button>
           </div>
         </section>
 
-        <InfoCard icon={Users} title="Разные пользователи — разные данные" text="Приложение использует localStorage конкретного браузера. У друзей будет свой журнал, даже если они откроют ту же ссылку." />
-        <InfoCard icon={Coffee} title="Кофейные дегустации" text="Каждый человек сохраняет свои зерна, рецепты, оценки, дескрипторы и Taste DNA." />
-        <InfoCard icon={BookOpen} title="Книги без сценариев" text="В публичной версии есть только оценки книг, настроение, заметки и связь с кофе. Раздела сценариев к роликам нет." />
-        <InfoCard icon={Database} title="Backup перед переносом" text="Если пользователь меняет телефон или браузер, данные нужно экспортировать через Data Vault и импортировать на новом устройстве." />
-        <InfoCard icon={Smartphone} title="PWA на iPhone" text="Лучший способ использовать CoffeeMind — открыть ссылку в Safari и добавить приложение на экран Домой." />
-        <InfoCard icon={ShieldCheck} title="Следующий этап — аккаунты" text="Для синхронизации между устройствами позже подключим Supabase Auth и приватные пользовательские таблицы." />
+        {c.cards.map((card, index) => (
+          <InfoCard
+            key={card.title}
+            icon={cardIcons[index]}
+            title={card.title}
+            text={card.text}
+          />
+        ))}
       </main>
     </div>
   );
