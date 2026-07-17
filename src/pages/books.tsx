@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, ChevronLeft, Coffee, Library, Pencil, Plus, Save, Star, Trash2, Users } from 'lucide-react';
 import { useLocation } from 'wouter';
@@ -75,6 +75,21 @@ export default function Books() {
     setSaveError('');
     setShowForm(true);
   };
+
+  useEffect(() => {
+    const openBookForm = () => {
+      window.sessionStorage.removeItem('coffeemind:open-book-form');
+      startAdd();
+      window.setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
+    };
+
+    if (window.sessionStorage.getItem('coffeemind:open-book-form') === '1') {
+      openBookForm();
+    }
+
+    window.addEventListener('coffeemind:open-book-form', openBookForm);
+    return () => window.removeEventListener('coffeemind:open-book-form', openBookForm);
+  }, []);
 
   const startEdit = (book: BookRating) => {
     const { id: _id, createdAt: _createdAt, ...editable } = book;
