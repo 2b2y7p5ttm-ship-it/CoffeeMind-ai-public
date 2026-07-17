@@ -1,4 +1,6 @@
 import { canonicalizeCountry } from '@/lib/coffeeReferenceI18n';
+import { canonicalizeProcessing } from '@/lib/processingI18n';
+import { canonicalizeBrewMethod } from '@/lib/brewMethodI18n';
 import type { Tasting } from '@/hooks/useTastings';
 
 export type TasteArchetype = {
@@ -146,27 +148,27 @@ function chooseArchetype(profile: Omit<TasteProfile, 'archetype'>, language: App
   const candidates: Array<{ score: number; archetype: Omit<TasteArchetype, 'confidence'> }> = [
     {
       score: (family?.id === 'berries' || family?.id === 'tropical' ? family.value + 25 : 0) + profile.averages.sweetness * 2,
-      archetype: { id: 'fruit-explorer', title: 'Fruit Explorer', subtitle: language === 'ru' ? 'Яркие, сочные и фруктовые чашки — твоя территория.' : 'Bright, juicy, fruit-forward cups are your territory.', emoji: '🍓' },
+      archetype: { id: 'fruit-explorer', title: language === 'ru' ? 'Исследователь фруктов' : 'Fruit Explorer', subtitle: language === 'ru' ? 'Яркие, сочные и фруктовые чашки — твоя территория.' : 'Bright, juicy, fruit-forward cups are your territory.', emoji: '🍓' },
     },
     {
       score: (family?.id === 'chocolate' || family?.id === 'nuts' || family?.id === 'sweet' ? family.value + 25 : 0) + profile.averages.body * 2,
-      archetype: { id: 'sweet-classic', title: 'Sweet Classic', subtitle: language === 'ru' ? 'Ты ценишь сладость, баланс и плотную текстуру.' : 'You value sweetness, balance, and a rich texture.', emoji: '🍫' },
+      archetype: { id: 'sweet-classic', title: language === 'ru' ? 'Сладкая классика' : 'Sweet Classic', subtitle: language === 'ru' ? 'Ты ценишь сладость, баланс и плотную текстуру.' : 'You value sweetness, balance, and a rich texture.', emoji: '🍫' },
     },
     {
       score: (family?.id === 'floral' ? family.value + 35 : 0) + profile.averages.acidity,
-      archetype: { id: 'floral-hunter', title: 'Floral Hunter', subtitle: language === 'ru' ? 'Тебя привлекают тонкие, чайные и цветочные профили.' : 'You are drawn to delicate, tea-like, floral profiles.', emoji: '🌸' },
+      archetype: { id: 'floral-hunter', title: language === 'ru' ? 'Охотник за цветами' : 'Floral Hunter', subtitle: language === 'ru' ? 'Тебя привлекают тонкие, чайные и цветочные профили.' : 'You are drawn to delicate, tea-like, floral profiles.', emoji: '🌸' },
     },
     {
       score: profile.averages.acidity * 5 + Math.max(0, profile.averages.acidity - profile.averages.bitterness) * 3,
-      archetype: { id: 'acid-seeker', title: 'Acid Seeker', subtitle: language === 'ru' ? 'Ты ищешь живую кислотность и сложную структуру чашки.' : 'You seek vivid acidity and a complex cup structure.', emoji: '⚡' },
+      archetype: { id: 'acid-seeker', title: language === 'ru' ? 'Искатель кислотности' : 'Acid Seeker', subtitle: language === 'ru' ? 'Ты ищешь живую кислотность и сложную структуру чашки.' : 'You seek vivid acidity and a complex cup structure.', emoji: '⚡' },
     },
     {
       score: profile.diversityIndex * 0.7 + uniqueCountries * 6,
-      archetype: { id: 'terroir-collector', title: 'Terroir Collector', subtitle: language === 'ru' ? 'Тебе важны происхождение, различия и исследование новых регионов.' : 'Origin, contrast, and discovering new regions matter to you.', emoji: '🌍' },
+      archetype: { id: 'terroir-collector', title: language === 'ru' ? 'Коллекционер терруаров' : 'Terroir Collector', subtitle: language === 'ru' ? 'Тебе важны происхождение, различия и исследование новых регионов.' : 'Origin, contrast, and discovering new regions matter to you.', emoji: '🌍' },
     },
     {
       score: profile.averages.balance * 4 + profile.averages.aftertaste * 2,
-      archetype: { id: 'balanced-observer', title: 'Balanced Observer', subtitle: language === 'ru' ? 'Ты ищешь гармонию и оцениваешь чашку целиком.' : 'You look for harmony and judge the cup as a whole.', emoji: '⚖️' },
+      archetype: { id: 'balanced-observer', title: language === 'ru' ? 'Наблюдатель баланса' : 'Balanced Observer', subtitle: language === 'ru' ? 'Ты ищешь гармонию и оцениваешь чашку целиком.' : 'You look for harmony and judge the cup as a whole.', emoji: '⚖️' },
     },
   ];
   candidates.sort((a, b) => b.score - a.score);
@@ -218,8 +220,8 @@ export function buildTasteProfile(tastings: Tasting[], language: AppLanguage = '
     },
     topDescriptors: rankDescriptors(tastings),
     topCountries: rankBy(tastings, (t) => canonicalizeCountry(t.country)),
-    topProcesses: rankBy(tastings, (t) => t.processing || t.process),
-    topMethods: rankBy(tastings, (t) => t.brewMethod || t.brewingMethod),
+    topProcesses: rankBy(tastings, (t) => canonicalizeProcessing(t.processing || t.process || '')),
+    topMethods: rankBy(tastings, (t) => canonicalizeBrewMethod(t.brewMethod || t.brewingMethod || '')),
     diversityIndex,
     flavorFamilies: buildFlavorFamilies(tastings, language),
   };

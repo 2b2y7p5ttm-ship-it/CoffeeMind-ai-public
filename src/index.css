@@ -964,3 +964,93 @@ html.theme-transitioning *::after {
   .cm-journal-add,
   .cm-journal-filter { width: 41px; height: 41px; border-radius: 15px; }
 }
+
+/* ─── CoffeeMind DNA 2.0 ─────────────────────────────────────────────── */
+.cm-dna-period-switch {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:5px;
+  padding:5px;
+  border-radius:18px;
+  background:hsl(var(--muted)/.72);
+  border:1px solid hsl(var(--border));
+}
+.cm-dna-period-switch button {
+  min-width:0;
+  height:37px;
+  border-radius:13px;
+  color:hsl(var(--muted-foreground));
+  font-size:11px;
+  font-weight:700;
+  transition:background-color 180ms ease,color 180ms ease,box-shadow 180ms ease,transform 180ms ease;
+}
+.cm-dna-period-switch button:active { transform:scale(.97); }
+.cm-dna-period-switch button.is-active {
+  color:hsl(var(--foreground));
+  background:hsl(var(--card));
+  box-shadow:0 8px 22px rgba(14,24,34,.09),inset 0 1px 0 hsl(var(--background));
+}
+.cm-dna-family-bar {
+  background:linear-gradient(90deg,hsl(var(--primary)/.48),hsl(var(--primary)));
+  box-shadow:0 0 16px hsl(var(--primary)/.2);
+}
+.cm-dna-influence-card {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:15px 14px 15px 16px;
+  border-radius:22px;
+  border:1px solid hsl(var(--border));
+  background:linear-gradient(145deg,hsl(var(--card)),hsl(var(--card)/.88));
+  box-shadow:0 14px 38px rgba(16,23,30,.065);
+  transition:transform 190ms cubic-bezier(.22,1,.36,1),border-color 190ms ease,box-shadow 190ms ease;
+}
+.cm-dna-influence-card:active { transform:scale(.985); }
+@media (hover:hover) {
+  .cm-dna-influence-card:hover {
+    transform:translateY(-2px);
+    border-color:hsl(var(--primary)/.2);
+    box-shadow:0 20px 46px rgba(16,23,30,.1);
+  }
+}
+.cm-dna-gap-grid {
+  display:grid;
+  grid-auto-flow:column;
+  grid-auto-columns:minmax(210px,76%);
+  gap:11px;
+  margin-inline:-16px;
+  padding-inline:16px;
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+  scroll-snap-type:x proximity;
+  scrollbar-width:none;
+}
+.cm-dna-gap-grid::-webkit-scrollbar { display:none; }
+.cm-dna-gap-card {
+  min-height:186px;
+  padding:16px;
+  border-radius:23px;
+  border:1px solid hsl(var(--border));
+  background:
+    radial-gradient(circle at 92% 8%,hsl(var(--primary)/.11),transparent 7rem),
+    hsl(var(--card));
+  box-shadow:0 14px 38px rgba(16,23,30,.06);
+  scroll-snap-align:start;
+}
+.cm-dna-next-card {
+  background:
+    radial-gradient(circle at 88% 2%,rgba(255,101,58,.2),transparent 12rem),
+    linear-gradient(145deg,#13283a 0%,#08141e 62%,#050c12 100%);
+  border-color:rgba(255,255,255,.09);
+  box-shadow:0 26px 64px rgba(7,17,26,.28);
+}
+.cm-dna-next-card h2,
+.cm-dna-next-card .text-foreground { color:#fff; }
+.cm-dna-next-card .text-muted-foreground { color:rgba(255,255,255,.56); }
+html.light .cm-dna-next-card {
+  box-shadow:0 24px 58px rgba(14,26,38,.22);
+}
+@media (max-width:360px) {
+  .cm-dna-period-switch button { font-size:10px; }
+  .cm-dna-gap-grid { grid-auto-columns:minmax(198px,82%); }
+}
