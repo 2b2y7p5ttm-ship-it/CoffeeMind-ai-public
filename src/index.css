@@ -896,14 +896,16 @@ html.theme-transitioning *::after {
 .cm-journal-undo {
   position: fixed;
   z-index: 190;
-  left: 50%;
+  left: 14px;
+  right: 14px;
   bottom: calc(92px + env(safe-area-inset-bottom));
-  width: min(calc(100% - 28px), 396px);
+  width: min(396px, calc(100% - 28px));
+  margin-inline: auto;
   min-height: 66px;
-  transform: translateX(-50%);
   padding: 12px 13px 12px 16px;
   border-radius: 20px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   overflow: hidden;
@@ -912,11 +914,12 @@ html.theme-transitioning *::after {
   border: 1px solid hsl(var(--border));
   box-shadow: 0 24px 80px rgba(0,0,0,.32);
   backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
 }
 .cm-journal-undo > div:first-child { flex:1;min-width:0; }
 .cm-journal-undo strong { display:block;font-size:12px;font-weight:790; }
 .cm-journal-undo span { display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:hsl(var(--muted-foreground)); }
-.cm-journal-undo button { min-height:36px;padding:0 11px;border-radius:12px;display:inline-flex;align-items:center;gap:6px;background:hsl(var(--primary)/.14);color:hsl(var(--primary));font-size:10px;font-weight:780; }
+.cm-journal-undo button { min-height:36px;padding:0 11px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0;white-space:nowrap;background:hsl(var(--primary)/.14);color:hsl(var(--primary));font-size:10px;font-weight:780; }
 .cm-journal-undo-progress { position:absolute;left:0;bottom:0;height:3px;width:100%;transform-origin:left;background:hsl(var(--primary));animation:cmJournalUndoProgress 5s linear forwards; }
 @keyframes cmJournalUndoProgress { from { transform:scaleX(1); } to { transform:scaleX(0); } }
 @media (prefers-reduced-motion: reduce) {
