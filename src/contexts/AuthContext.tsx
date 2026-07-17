@@ -10,6 +10,7 @@ type AuthContextValue = {
   signUp: (email: string, password: string, name: string) => Promise<{ needsConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  updateDisplayName: (name: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -67,6 +68,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!supabase) return;
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+    },
+    async updateDisplayName(name) {
+      if (!supabase) throw new Error('Supabase is not configured');
+      const nextName = name.replace(/\s+/g, ' ').trim();
+      if (!nextName) throw new Error('Display name is required');
+
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          ...(session?.user.user_metadata || {}),
+          name: nextName,
+        },
+      });
+      if (error) throw error;
+
+      const userId = data.user?.id || session?.user.id;
+      if (!userId) throw new Error('User session is not available');
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({ id: userId, name: nextName });
+      if (profileError) throw profileError;
     },
   }), [loading, session]);
 

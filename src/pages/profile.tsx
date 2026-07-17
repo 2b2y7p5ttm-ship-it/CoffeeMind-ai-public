@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Link } from 'wouter';
-import { Edit2, Check, Settings, Star, Flame, Globe, Coffee, Brain } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Link, useLocation } from 'wouter';
+import { AlertCircle, Brain, Check, CheckCircle2, Cloud, CloudOff, Coffee, Edit2, Flame, Globe, Loader2, LogIn, LogOut, Mail, Settings, Star, X } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useTastings, Tasting } from '@/hooks/useTastings';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { canonicalizeCountry } from '@/lib/coffeeReferenceI18n';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { resolveDisplayName } from '@/lib/profileIdentity';
+import { useCloudSync } from '@/hooks/useCloudSync';
 
 function getInitials(name: string): string {
   return name.split(' ').map((word) => word[0]).join('').toUpperCase().slice(0, 2);
@@ -110,9 +111,11 @@ const ACHIEVEMENTS: Array<{ id: AchievementId; icon: string; check: (tastings: T
 ];
 
 export default function Profile() {
+  const [, setLocation] = useLocation();
   const { profile, setProfile } = useProfile();
   const { tastings } = useTastings();
-  const { user } = useAuth();
+  const { user, loading: authLoading, signOut, updateDisplayName } = useAuth();
+  const { status: syncStatus, lastError: syncError } = useCloudSync();
   const { language } = useLanguage();
   const { copy } = useSectionCopy();
   const profileCopy = copy.profile;
@@ -125,17 +128,69 @@ export default function Profile() {
   }), [language, profile.name, user]);
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(displayName);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [saveMessage, setSaveMessage] = useState('');
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [signOutBusy, setSignOutBusy] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
 
   useEffect(() => {
     if (!isEditing) setName(displayName);
   }, [displayName, isEditing]);
 
-  const handleSave = () => {
-    const nextName = name.trim();
-    if (nextName) setProfile({ ...profile, name: nextName });
-    else setName(displayName);
+  const closeEditor = () => {
+    setName(displayName);
     setIsEditing(false);
+    setSaveState('idle');
+    setSaveMessage('');
   };
+
+  const handleSave = async () => {
+    const nextName = name.replace(/\s+/g, ' ').trim();
+    if (!nextName) {
+      setSaveState('error');
+      setSaveMessage(profileCopy.nicknameRequired);
+      return;
+    }
+
+    setSaveState('saving');
+    setSaveMessage('');
+    setProfile((current) => ({ ...current, name: nextName }));
+
+    try {
+      if (user) await updateDisplayName(nextName);
+      setSaveState('success');
+      setSaveMessage(user ? profileCopy.nicknameSaved : profileCopy.nicknameSavedDevice);
+      setIsEditing(false);
+    } catch (error) {
+      console.warn('Unable to sync profile name:', error);
+      setSaveState('error');
+      setSaveMessage(user ? profileCopy.nicknameSavedLocal : profileCopy.nicknameSaveFailed);
+      setIsEditing(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setSignOutBusy(true);
+    setSignOutError('');
+    try {
+      await signOut();
+      setShowSignOutConfirm(false);
+    } catch (error) {
+      console.warn('Unable to sign out:', error);
+      setSignOutError(profileCopy.signOutFailed);
+    } finally {
+      setSignOutBusy(false);
+    }
+  };
+
+  const syncLabel = syncStatus === 'synced'
+    ? profileCopy.synced
+    : syncStatus === 'syncing' || syncStatus === 'loading'
+      ? profileCopy.syncing
+      : syncStatus === 'error'
+        ? profileCopy.syncError
+        : profileCopy.localMode;
 
   const count = tastings.length;
   const level = getLevel(count);
@@ -173,7 +228,7 @@ export default function Profile() {
         </Link>
       </div>
 
-      <div className="flex flex-col items-center mb-8">
+      <div className="flex flex-col items-center mb-6">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -181,35 +236,67 @@ export default function Profile() {
           style={{ background: `radial-gradient(circle at 35% 35%, ${profile.avatarColor || '#D9A35F'}cc, ${profile.avatarColor || '#D9A35F'})` }}
         >
           {getInitials(displayName)}
+          <div
+            className={`absolute top-1 left-1 w-3.5 h-3.5 rounded-full border-2 border-background ${
+              user
+                ? syncStatus === 'error' ? 'bg-red-400' : syncStatus === 'synced' ? 'bg-emerald-400' : 'bg-amber-400'
+                : 'bg-muted-foreground/50'
+            }`}
+            aria-hidden="true"
+          />
           <div className="absolute -bottom-1 -right-1 bg-card border border-white/10 rounded-full w-9 h-9 flex items-center justify-center text-lg shadow-lg">
             {level.emoji}
           </div>
         </motion.div>
 
         {isEditing ? (
-          <div className="flex items-center gap-2 max-w-[240px]">
-            <Input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="text-center font-serif text-xl h-10 bg-card border-border focus-visible:ring-primary"
-              autoFocus
-              onKeyDown={(event) => event.key === 'Enter' && handleSave()}
-            />
-            <button
-              onClick={handleSave}
-              aria-label={profileCopy.saveName}
-              className="w-10 h-10 flex-shrink-0 bg-primary text-primary-foreground rounded-full flex items-center justify-center"
-            >
-              <Check size={16} />
-            </button>
+          <div className="w-full max-w-[320px]">
+            <label className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold mb-1.5 block text-center">
+              {profileCopy.nicknameLabel}
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder={profileCopy.nicknamePlaceholder}
+                maxLength={50}
+                disabled={saveState === 'saving'}
+                className="text-center font-serif text-xl h-11 bg-card border-border focus-visible:ring-primary rounded-2xl"
+                autoFocus
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') void handleSave();
+                  if (event.key === 'Escape') closeEditor();
+                }}
+              />
+              <button
+                onClick={() => void handleSave()}
+                disabled={saveState === 'saving'}
+                aria-label={profileCopy.saveName}
+                className="w-11 h-11 flex-shrink-0 bg-primary text-primary-foreground rounded-full flex items-center justify-center disabled:opacity-50"
+              >
+                {saveState === 'saving' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+              </button>
+              <button
+                onClick={closeEditor}
+                disabled={saveState === 'saving'}
+                aria-label={profileCopy.cancelEditing}
+                className="w-11 h-11 flex-shrink-0 bg-card border border-white/[0.07] text-muted-foreground rounded-full flex items-center justify-center disabled:opacity-50"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <h1 className="font-serif text-[1.9rem] font-medium text-foreground">{displayName}</h1>
+          <div className="flex items-center gap-2 max-w-full">
+            <h1 className="font-serif text-[1.9rem] font-medium text-foreground text-center break-words">{displayName}</h1>
             <button
-              onClick={() => setIsEditing(true)}
+              onClick={() => {
+                setSaveState('idle');
+                setSaveMessage('');
+                setIsEditing(true);
+              }}
               aria-label={profileCopy.editName}
-              className="text-muted-foreground hover:text-primary transition-colors p-1"
+              className="text-muted-foreground hover:text-primary transition-colors p-1 flex-shrink-0"
               data-testid="btn-edit-profile"
             >
               <Edit2 size={14} />
@@ -218,7 +305,112 @@ export default function Profile() {
         )}
 
         <p className="text-muted-foreground text-[13px] mt-1 font-medium">{levelTitle}</p>
+        <AnimatePresence mode="wait">
+          {saveMessage && (
+            <motion.div
+              key={`${saveState}-${saveMessage}`}
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className={`mt-3 flex items-center gap-1.5 text-[11px] ${saveState === 'error' ? 'text-amber-400' : 'text-emerald-400'}`}
+            >
+              {saveState === 'error' ? <AlertCircle size={13} /> : <CheckCircle2 size={13} />}
+              <span>{saveMessage}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
+
+      <section className="bg-card/60 border border-white/[0.06] rounded-[24px] p-5 mb-4">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50">{profileCopy.accountTitle}</p>
+            <p className="font-serif text-lg font-medium text-foreground mt-1">
+              {authLoading ? profileCopy.accountLoading : user ? profileCopy.accountConnected : profileCopy.accountLocal}
+            </p>
+          </div>
+          <div className={`w-10 h-10 rounded-full border flex items-center justify-center ${
+            user
+              ? syncStatus === 'error' ? 'bg-red-500/10 border-red-500/20' : 'bg-emerald-500/10 border-emerald-500/20'
+              : 'bg-muted/50 border-white/[0.06]'
+          }`}>
+            {authLoading
+              ? <Loader2 size={18} className="animate-spin text-primary" />
+              : user
+                ? syncStatus === 'error' ? <CloudOff size={18} className="text-red-400" /> : <Cloud size={18} className="text-emerald-400" />
+                : <CloudOff size={18} className="text-muted-foreground" />}
+          </div>
+        </div>
+
+        {authLoading ? (
+          <div className="space-y-2">
+            <div className="h-4 w-2/3 rounded-full bg-muted animate-pulse" />
+            <div className="h-3 w-full rounded-full bg-muted/70 animate-pulse" />
+          </div>
+        ) : user ? (
+          <>
+            <div className="flex items-center gap-3 rounded-2xl bg-background/50 border border-white/[0.05] p-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                <Mail size={17} className="text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/50">{profileCopy.emailLabel}</p>
+                <p className="text-[13px] text-foreground truncate mt-0.5">{user.email}</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2.5 mb-4">
+              {syncStatus === 'error'
+                ? <AlertCircle size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
+                : syncStatus === 'synced'
+                  ? <CheckCircle2 size={16} className="text-emerald-400 mt-0.5 flex-shrink-0" />
+                  : <Loader2 size={16} className="text-primary mt-0.5 flex-shrink-0 animate-spin" />}
+              <div className="min-w-0">
+                <p className={`text-[12px] font-semibold ${syncStatus === 'error' ? 'text-red-400' : 'text-foreground'}`}>{syncLabel}</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">{profileCopy.connectedDescription}</p>
+                {syncStatus === 'error' && syncError && (
+                  <details className="mt-2">
+                    <summary className="text-[10px] text-red-400 cursor-pointer">{profileCopy.cloudErrorDetails}</summary>
+                    <p className="text-[10px] text-muted-foreground mt-1 break-words">{syncError}</p>
+                  </details>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setLocation('/account')}
+                className="h-11 rounded-2xl bg-primary/10 border border-primary/20 text-primary text-[12px] font-semibold"
+              >
+                {profileCopy.manageAccount}
+              </button>
+              <button
+                onClick={() => {
+                  setSignOutError('');
+                  setShowSignOutConfirm(true);
+                }}
+                className="h-11 rounded-2xl bg-white/[0.04] border border-white/[0.07] text-foreground text-[12px] font-semibold flex items-center justify-center gap-1.5"
+              >
+                <LogOut size={14} />
+                {profileCopy.signOut}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-[12px] text-muted-foreground leading-relaxed mb-4">
+              {profileCopy.localDescription}
+            </p>
+            <button
+              onClick={() => setLocation('/account?mode=login')}
+              className="w-full h-11 rounded-2xl bg-primary text-primary-foreground text-[12px] font-bold flex items-center justify-center gap-2"
+            >
+              <LogIn size={15} />
+              {profileCopy.signIn}
+            </button>
+          </>
+        )}
+      </section>
 
       <div className="bg-card/60 border border-white/[0.06] rounded-[24px] p-5 mb-4">
         <div className="flex items-start justify-between mb-3">
@@ -385,8 +577,75 @@ export default function Profile() {
       </div>
 
       <div className="mt-10 text-center">
-        <p className="text-[10px] text-muted-foreground/25 font-medium tracking-widest uppercase">CoffeeMind AI · v1.3</p>
+        <p className="text-[10px] text-muted-foreground/25 font-medium tracking-widest uppercase">CoffeeMind AI · v1.4</p>
       </div>
+
+      <AnimatePresence>
+        {showSignOutConfirm && (
+          <motion.div
+            className="fixed inset-0 z-[120] bg-black/65 backdrop-blur-sm flex items-end justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+20px)]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !signOutBusy && setShowSignOutConfirm(false)}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="profile-sign-out-title"
+              initial={{ opacity: 0, y: 32, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 24, scale: 0.98 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 300 }}
+              onClick={(event) => event.stopPropagation()}
+              className="relative w-full max-w-[398px] rounded-[28px] bg-card border border-white/[0.08] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+                  <LogOut size={19} className="text-red-400" />
+                </div>
+                <div className="min-w-0 pr-8">
+                  <h2 id="profile-sign-out-title" className="font-serif text-xl font-medium text-foreground">{profileCopy.signOutTitle}</h2>
+                  <p className="text-[12px] text-muted-foreground leading-relaxed mt-1.5">{profileCopy.signOutDescription}</p>
+                </div>
+                <button
+                  onClick={() => setShowSignOutConfirm(false)}
+                  disabled={signOutBusy}
+                  aria-label={profileCopy.cancel}
+                  className="absolute right-7 top-7 w-8 h-8 rounded-full bg-white/[0.05] text-muted-foreground flex items-center justify-center disabled:opacity-50"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              {signOutError && (
+                <div className="mt-4 rounded-2xl bg-red-500/10 border border-red-500/20 px-3 py-2.5 flex items-center gap-2 text-[11px] text-red-400">
+                  <AlertCircle size={14} className="flex-shrink-0" />
+                  <span>{signOutError}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 mt-5">
+                <button
+                  onClick={() => setShowSignOutConfirm(false)}
+                  disabled={signOutBusy}
+                  className="h-12 rounded-2xl bg-white/[0.05] border border-white/[0.07] text-foreground text-[13px] font-semibold disabled:opacity-50"
+                >
+                  {profileCopy.cancel}
+                </button>
+                <button
+                  onClick={() => void handleSignOut()}
+                  disabled={signOutBusy}
+                  className="h-12 rounded-2xl bg-red-500 text-white text-[13px] font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {signOutBusy ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
+                  {signOutBusy ? profileCopy.signingOut : profileCopy.confirmSignOut}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

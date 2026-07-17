@@ -1,6 +1,6 @@
-import { useCloudSync } from '@/hooks/useCloudSync';
+import { useCloudSyncEngine } from '@/hooks/useCloudSync';
 
 export function CloudSyncBridge() {
-  useCloudSync();
+  useCloudSyncEngine();
   return null;
 }

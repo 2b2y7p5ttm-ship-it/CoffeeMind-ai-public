@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Tasting } from '@/hooks/useTastings';
@@ -12,6 +12,38 @@ const PROFILE_KEY = 'coffee_journal_profile';
 const LOCAL_EVENT = 'coffeemind:local-storage-change';
 
 export type CloudSyncStatus = 'local' | 'loading' | 'synced' | 'syncing' | 'error';
+
+export type CloudSyncSnapshot = {
+  status: CloudSyncStatus;
+  lastError: string | null;
+};
+
+let cloudSyncSnapshot: CloudSyncSnapshot = {
+  status: 'local',
+  lastError: null,
+};
+
+const cloudSyncListeners = new Set<() => void>();
+
+function publishCloudSync(patch: Partial<CloudSyncSnapshot>) {
+  const nextSnapshot = { ...cloudSyncSnapshot, ...patch };
+  if (
+    nextSnapshot.status === cloudSyncSnapshot.status
+    && nextSnapshot.lastError === cloudSyncSnapshot.lastError
+  ) return;
+
+  cloudSyncSnapshot = nextSnapshot;
+  cloudSyncListeners.forEach((listener) => listener());
+}
+
+function subscribeCloudSync(listener: () => void) {
+  cloudSyncListeners.add(listener);
+  return () => cloudSyncListeners.delete(listener);
+}
+
+function getCloudSyncSnapshot() {
+  return cloudSyncSnapshot;
+}
 
 function readLocal<T>(key: string, fallback: T): T {
   try {
@@ -180,15 +212,16 @@ function mergeById<T extends { id: string; createdAt: string; updatedAt?: string
   return [...map.values()].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
-export function useCloudSync() {
+export function useCloudSyncEngine() {
   const { user, configured } = useAuth();
-  const [status, setStatus] = useState<CloudSyncStatus>(configured ? 'local' : 'local');
-  const [lastError, setLastError] = useState<string | null>(null);
+  const setStatus = (status: CloudSyncStatus) => publishCloudSync({ status });
+  const setLastError = (lastError: string | null) => publishCloudSync({ lastError });
   const suppressRef = useRef(false);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!supabase || !user) {
+      setLastError(null);
       setStatus('local');
       return;
     }
@@ -327,5 +360,12 @@ export function useCloudSync() {
     };
   }, [user?.id, configured]);
 
-  return { status, lastError };
+}
+
+export function useCloudSync(): CloudSyncSnapshot {
+  return useSyncExternalStore(
+    subscribeCloudSync,
+    getCloudSyncSnapshot,
+    getCloudSyncSnapshot,
+  );
 }
