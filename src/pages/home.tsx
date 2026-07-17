@@ -9,6 +9,7 @@ import {
   Heart,
   Leaf,
   LogIn,
+  Plus,
   RotateCcw,
   Search,
   SlidersHorizontal,
@@ -296,17 +297,28 @@ export default function Home() {
           <h1>{user ? t('journal.ownerTitle', { name: journalOwner }) : t('journal.title')}</h1>
           <p>{tastings.length ? pluralizeChapters(tastings.length, language) : t('journal.firstChapter')}</p>
         </div>
-        <motion.button
-          whileTap={{ scale: 0.88 }}
-          type="button"
-          className={`cm-journal-filter ${showFilters || hasActiveFilters ? 'is-active' : ''}`}
-          onClick={() => setShowFilters((value) => !value)}
-          aria-label={t('journal.openFilters')}
-          aria-expanded={showFilters}
-        >
-          <Filter size={18} />
-          {activeFilterCount > 0 && <span className="cm-journal-filter-badge">{activeFilterCount}</span>}
-        </motion.button>
+        <div className="cm-journal-header-actions">
+          <motion.button
+            whileTap={{ scale: 0.88 }}
+            type="button"
+            className="cm-journal-add"
+            onClick={() => navigate('/add')}
+            aria-label={t('nav.add')}
+          >
+            <Plus size={20} strokeWidth={2.4} />
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.88 }}
+            type="button"
+            className={`cm-journal-filter ${showFilters || hasActiveFilters ? 'is-active' : ''}`}
+            onClick={() => setShowFilters((value) => !value)}
+            aria-label={t('journal.openFilters')}
+            aria-expanded={showFilters}
+          >
+            <Filter size={18} />
+            {activeFilterCount > 0 && <span className="cm-journal-filter-badge">{activeFilterCount}</span>}
+          </motion.button>
+        </div>
       </header>
 
       {!authLoading && !user && (

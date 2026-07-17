@@ -926,3 +926,41 @@ html.theme-transitioning *::after {
   .cm-journal-undo-progress { animation: none; }
   .cm-journal-quick-filters button { transition: none; }
 }
+
+
+/* ─── Primary learning navigation ─────────────────────────────────────── */
+.cm-nav-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.cm-journal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.cm-journal-add {
+  width: 44px;
+  height: 44px;
+  border-radius: 17px;
+  display: grid;
+  place-items: center;
+  color: white;
+  background: hsl(var(--primary));
+  border: 1px solid hsl(var(--primary));
+  box-shadow: 0 12px 30px hsl(var(--primary) / .25);
+}
+
+@media (max-width: 360px) {
+  .cm-nav-label { font-size: 8px; }
+  .cm-journal-header { gap: 10px; }
+  .cm-journal-header-actions { gap: 6px; }
+  .cm-journal-add,
+  .cm-journal-filter { width: 41px; height: 41px; border-radius: 15px; }
+}
