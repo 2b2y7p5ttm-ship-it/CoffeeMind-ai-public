@@ -5,10 +5,11 @@ import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const NAV_ITEMS = [
+  // CoffeeMind stays tasting-first: Journal and Coffee DNA are the primary product areas.
   { href: '/', icon: Home, labelKey: 'nav.journal' as const },
   { href: '/stats', icon: Dna, labelKey: 'nav.dna' as const },
-  { href: '/learning', icon: GraduationCap, labelKey: 'nav.learning' as const },
   { href: '/books', icon: BookOpen, labelKey: 'nav.books' as const },
+  { href: '/learning', icon: GraduationCap, labelKey: 'nav.learning' as const },
   { href: '/profile', icon: User, labelKey: 'nav.profile' as const },
 ];
 
