@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-
-const LOCAL_STORAGE_EVENT = 'coffeemind:local-storage-change';
-
-type LocalStorageChangeDetail<T = unknown> = {
-  key: string;
-  value: T;
-};
+import { dispatchLocalStorageChange, LOCAL_STORAGE_EVENT, type LocalStorageChangeDetail } from '@/lib/localStorageEvents';
 
 function readStoredValue<T>(key: string, initialValue: T): T {
   if (typeof window === 'undefined') return initialValue;
@@ -60,11 +54,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
 
         // The native "storage" event is not fired in the same browser tab,
         // so notify every other useLocalStorage instance explicitly.
-        window.dispatchEvent(
-          new CustomEvent<LocalStorageChangeDetail<T>>(LOCAL_STORAGE_EVENT, {
-            detail: { key, value: valueToStore },
-          }),
-        );
+        dispatchLocalStorageChange(key, valueToStore);
       } catch (error) {
         console.warn(`Error setting localStorage key "${key}":`, error);
       }

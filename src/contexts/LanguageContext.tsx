@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { enTranslations, interpolate, ruTranslations, type TranslationKey, type TranslationVariables } from '@/lib/i18n';
+import { dispatchLocalStorageChange, LOCAL_STORAGE_EVENT, type LocalStorageChangeDetail } from '@/lib/localStorageEvents';
+import { LANGUAGE_STORAGE_KEY, PREFERENCES_UPDATED_AT_KEY } from '@/lib/cloudState';
 
 export type LanguageMode = 'system' | 'ru' | 'en';
 export type AppLanguage = 'ru' | 'en';
@@ -12,7 +14,7 @@ interface LanguageContextValue {
   t: (key: TranslationKey, variables?: TranslationVariables) => string;
 }
 
-const STORAGE_KEY = 'coffeemind_language';
+const STORAGE_KEY = LANGUAGE_STORAGE_KEY;
 
 function systemLanguage(): AppLanguage {
   if (typeof navigator === 'undefined') return 'ru';
@@ -31,6 +33,17 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<LanguageMode>(readMode);
   const [detectedLanguage, setDetectedLanguage] = useState<AppLanguage>(systemLanguage);
   const language = mode === 'system' ? detectedLanguage : mode;
+
+  useEffect(() => {
+    const syncStoredLanguage = (event: Event) => {
+      const detail = (event as CustomEvent<LocalStorageChangeDetail>).detail;
+      if (detail?.key !== STORAGE_KEY) return;
+      const nextMode = readMode();
+      setModeState(nextMode);
+    };
+    window.addEventListener(LOCAL_STORAGE_EVENT, syncStoredLanguage);
+    return () => window.removeEventListener(LOCAL_STORAGE_EVENT, syncStoredLanguage);
+  }, []);
   const locale: 'ru-RU' | 'en-US' = language === 'ru' ? 'ru-RU' : 'en-US';
 
   useEffect(() => {
@@ -46,6 +59,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const setMode = useCallback((nextMode: LanguageMode) => {
     window.localStorage.setItem(STORAGE_KEY, nextMode);
+    const updatedAt = new Date().toISOString();
+    window.localStorage.setItem(PREFERENCES_UPDATED_AT_KEY, updatedAt);
+    dispatchLocalStorageChange(STORAGE_KEY, nextMode);
     setModeState(nextMode);
   }, []);
 

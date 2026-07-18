@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { dispatchLocalStorageChange, LOCAL_STORAGE_EVENT, type LocalStorageChangeDetail } from '@/lib/localStorageEvents';
+import { PREFERENCES_UPDATED_AT_KEY, THEME_STORAGE_KEY } from '@/lib/cloudState';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -10,7 +12,7 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-const STORAGE_KEY = 'coffeemind_theme';
+const STORAGE_KEY = THEME_STORAGE_KEY;
 
 function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -22,6 +24,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system';
   });
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(() => getSystemTheme());
+
+  useEffect(() => {
+    const syncStoredTheme = (event: Event) => {
+      const detail = (event as CustomEvent<LocalStorageChangeDetail>).detail;
+      if (detail?.key !== STORAGE_KEY) return;
+      const nextMode = localStorage.getItem(STORAGE_KEY);
+      if (nextMode === 'light' || nextMode === 'dark' || nextMode === 'system') setModeState(nextMode);
+    };
+    window.addEventListener(LOCAL_STORAGE_EVENT, syncStoredTheme);
+    return () => window.removeEventListener(LOCAL_STORAGE_EVENT, syncStoredTheme);
+  }, []);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -38,7 +51,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.classList.toggle('dark', resolvedTheme === 'dark');
     root.classList.toggle('light', resolvedTheme === 'light');
     root.style.colorScheme = resolvedTheme;
+    const storedMode = localStorage.getItem(STORAGE_KEY);
     localStorage.setItem(STORAGE_KEY, mode);
+    if (storedMode !== mode) {
+      const updatedAt = new Date().toISOString();
+      localStorage.setItem(PREFERENCES_UPDATED_AT_KEY, updatedAt);
+      dispatchLocalStorageChange(STORAGE_KEY, mode);
+    }
 
     const timeout = window.setTimeout(() => root.classList.remove('theme-transitioning'), 460);
     return () => window.clearTimeout(timeout);

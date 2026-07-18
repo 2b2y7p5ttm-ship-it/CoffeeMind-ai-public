@@ -5,11 +5,20 @@ import type { Tasting } from '@/hooks/useTastings';
 import type { BookRating } from '@/hooks/useBooks';
 import type { UserProfile } from '@/hooks/useProfile';
 import { resolveSyncedProfileName } from '@/lib/profileIdentity';
+import {
+  CLOUD_STATE_KEYS,
+  CLOUD_STATE_TABLE,
+  mergeCloudState,
+  MONITORED_LOCAL_KEYS,
+  readLocalCloudState,
+  writeLocalCloudState,
+  type CloudStateKey,
+} from '@/lib/cloudState';
+import { LOCAL_STORAGE_EVENT, type LocalStorageChangeDetail } from '@/lib/localStorageEvents';
 
 const TASTINGS_KEY = 'coffee_journal_tastings';
 const BOOKS_KEY = 'coffeemind_book_ratings';
 const PROFILE_KEY = 'coffee_journal_profile';
-const LOCAL_EVENT = 'coffeemind:local-storage-change';
 
 export type CloudSyncStatus = 'local' | 'loading' | 'synced' | 'syncing' | 'error';
 
@@ -56,7 +65,7 @@ function readLocal<T>(key: string, fallback: T): T {
 
 function writeLocal<T>(key: string, value: T) {
   localStorage.setItem(key, JSON.stringify(value));
-  window.dispatchEvent(new CustomEvent(LOCAL_EVENT, { detail: { key, value } }));
+  window.dispatchEvent(new CustomEvent(LOCAL_STORAGE_EVENT, { detail: { key, value } }));
 }
 
 function tastingToRow(t: Tasting, userId: string) {
@@ -212,6 +221,43 @@ function mergeById<T extends { id: string; createdAt: string; updatedAt?: string
   return [...map.values()].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
+
+function cloudStateMigrationMessage(error: any): string {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '');
+  if (code === '42P01' || message.includes(CLOUD_STATE_TABLE)) {
+    return 'Cloud progress sync is not configured. Run supabase/cloud-sync-2.sql in Supabase SQL Editor.';
+  }
+  return message || 'Cloud progress sync failed';
+}
+
+function mergeRemoteAppState(rows: Array<Record<string, any>>) {
+  const remoteMap = new Map<CloudStateKey, unknown>();
+  rows.forEach((row) => {
+    if (CLOUD_STATE_KEYS.includes(row.state_key as CloudStateKey)) {
+      remoteMap.set(row.state_key as CloudStateKey, row.state_value);
+    }
+  });
+
+  return CLOUD_STATE_KEYS.map((stateKey) => ({
+    stateKey,
+    value: mergeCloudState(stateKey, readLocalCloudState(stateKey), remoteMap.get(stateKey)),
+  }));
+}
+
+function cloudStateRowsForUpsert(userId: string, entries?: Array<{ stateKey: CloudStateKey; value: unknown }>) {
+  const now = new Date().toISOString();
+  const source = entries ?? CLOUD_STATE_KEYS.map((stateKey) => ({ stateKey, value: readLocalCloudState(stateKey) }));
+  return source
+    .filter((entry) => entry.value != null)
+    .map((entry) => ({
+      user_id: userId,
+      state_key: entry.stateKey,
+      state_value: entry.value,
+      updated_at: now,
+    }));
+}
+
 export function useCloudSyncEngine() {
   const { user, configured } = useAuth();
   const setStatus = (status: CloudSyncStatus) => publishCloudSync({ status });
@@ -232,14 +278,16 @@ export function useCloudSyncEngine() {
       setStatus('loading');
       setLastError(null);
       try {
-        const [tastingsResult, booksResult, profileResult] = await Promise.all([
+        const [tastingsResult, booksResult, profileResult, appStateResult] = await Promise.all([
           supabase.from('tastings').select('*').order('created_at', { ascending: false }),
           supabase.from('book_ratings').select('*').order('created_at', { ascending: false }),
           supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+          supabase.from(CLOUD_STATE_TABLE).select('state_key,state_value,updated_at').eq('user_id', user.id),
         ]);
         if (tastingsResult.error) throw tastingsResult.error;
         if (booksResult.error) throw booksResult.error;
         if (profileResult.error) throw profileResult.error;
+        if (appStateResult.error) throw new Error(cloudStateMigrationMessage(appStateResult.error));
         if (cancelled) return;
 
         const localTastings = readLocal<Tasting[]>(TASTINGS_KEY, []);
@@ -249,6 +297,7 @@ export function useCloudSyncEngine() {
         const remoteBooks = (booksResult.data || []).map(rowToBook);
         const mergedTastings = mergeById(localTastings, remoteTastings);
         const mergedBooks = mergeById(localBooks, remoteBooks);
+        const mergedAppState = mergeRemoteAppState(appStateResult.data || []);
         const metadataName = typeof user.user_metadata?.name === 'string' ? user.user_metadata.name : '';
         const mergedProfile: UserProfile = {
           ...localProfile,
@@ -268,6 +317,7 @@ export function useCloudSyncEngine() {
         writeLocal(TASTINGS_KEY, mergedTastings);
         writeLocal(BOOKS_KEY, mergedBooks);
         writeLocal(PROFILE_KEY, mergedProfile);
+        mergedAppState.forEach(({ stateKey, value }) => writeLocalCloudState(stateKey, value));
 
         await Promise.all([
           mergedTastings.length
@@ -281,6 +331,10 @@ export function useCloudSyncEngine() {
             name: mergedProfile.name,
             avatar_color: mergedProfile.avatarColor || '#D9A35F',
           }),
+          supabase.from(CLOUD_STATE_TABLE).upsert(
+            cloudStateRowsForUpsert(user.id, mergedAppState),
+            { onConflict: 'user_id,state_key' },
+          ),
         ]).then((results) => {
           const error = results.find((result: any) => result.error)?.error;
           if (error) throw error;
@@ -328,6 +382,10 @@ export function useCloudSyncEngine() {
         });
         const operations: PromiseLike<any>[] = [
           supabase.from('profiles').upsert({ id: user.id, name: syncedName, avatar_color: profile.avatarColor || '#D9A35F' }),
+          supabase.from(CLOUD_STATE_TABLE).upsert(
+            cloudStateRowsForUpsert(user.id),
+            { onConflict: 'user_id,state_key' },
+          ),
         ];
         if (tastings.length) operations.push(supabase.from('tastings').upsert(tastings.map((t) => tastingToRow(t, user.id))));
         if (books.length) operations.push(supabase.from('book_ratings').upsert(books.map((b) => bookToRow(b, user.id))));
@@ -346,16 +404,26 @@ export function useCloudSyncEngine() {
       }
     };
 
-    const onLocalChange = () => {
+    const syncableKeys = new Set([TASTINGS_KEY, BOOKS_KEY, PROFILE_KEY, ...MONITORED_LOCAL_KEYS]);
+    const onLocalChange = (event: Event) => {
       if (suppressRef.current) return;
+      const detail = (event as CustomEvent<LocalStorageChangeDetail>).detail;
+      if (detail?.key && !syncableKeys.has(detail.key)) return;
       if (timerRef.current) window.clearTimeout(timerRef.current);
       timerRef.current = window.setTimeout(() => void syncLocalState(), 700);
     };
+    const onResume = () => {
+      if (document.visibilityState === 'visible' && !suppressRef.current) void fullSync();
+    };
 
-    window.addEventListener(LOCAL_EVENT, onLocalChange);
+    window.addEventListener(LOCAL_STORAGE_EVENT, onLocalChange);
+    window.addEventListener('online', onResume);
+    document.addEventListener('visibilitychange', onResume);
     return () => {
       cancelled = true;
-      window.removeEventListener(LOCAL_EVENT, onLocalChange);
+      window.removeEventListener(LOCAL_STORAGE_EVENT, onLocalChange);
+      window.removeEventListener('online', onResume);
+      document.removeEventListener('visibilitychange', onResume);
       if (timerRef.current) window.clearTimeout(timerRef.current);
     };
   }, [user?.id, configured]);

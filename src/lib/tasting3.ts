@@ -1,4 +1,6 @@
 import type { Tasting } from '@/hooks/useTastings';
+import { dispatchLocalStorageChange } from '@/lib/localStorageEvents';
+import { RECIPE_TEMPLATES_STORAGE_KEY, RECIPE_TEMPLATES_UPDATED_AT_KEY } from '@/lib/cloudState';
 import { canonicalizeBrewMethod } from '@/lib/brewMethodI18n';
 
 export type TastingMode = 'quick' | 'professional';
@@ -79,7 +81,7 @@ export const BUILT_IN_RECIPE_TEMPLATES: RecipeTemplate[] = [
   },
 ];
 
-const CUSTOM_RECIPE_STORAGE_KEY = 'coffeemind:recipe-templates:v1';
+const CUSTOM_RECIPE_STORAGE_KEY = RECIPE_TEMPLATES_STORAGE_KEY;
 
 function uniqueRecent(values: Array<string | undefined>, limit = 5) {
   const seen = new Set<string>();
@@ -167,7 +169,10 @@ export function readCustomRecipeTemplates(): RecipeTemplate[] {
 
 export function writeCustomRecipeTemplates(templates: RecipeTemplate[]) {
   try {
-    window.localStorage.setItem(CUSTOM_RECIPE_STORAGE_KEY, JSON.stringify(templates.slice(0, 5)));
+    const nextTemplates = templates.slice(0, 5);
+    window.localStorage.setItem(CUSTOM_RECIPE_STORAGE_KEY, JSON.stringify(nextTemplates));
+    window.localStorage.setItem(RECIPE_TEMPLATES_UPDATED_AT_KEY, new Date().toISOString());
+    dispatchLocalStorageChange(CUSTOM_RECIPE_STORAGE_KEY, nextTemplates);
   } catch (error) {
     console.warn('Failed to save custom recipe templates:', error);
   }
