@@ -16,6 +16,8 @@ import { localizeFlavor, useTastingCopy } from '@/lib/tastingI18n';
 import { localizeProcessing } from '@/lib/processingI18n';
 import { BREW_METHOD_VALUES, canonicalizeBrewMethod, localizeBrewMethod } from '@/lib/brewMethodI18n';
 import { COUNTRY_VALUES, VARIETY_VALUES, canonicalizeCountry, canonicalizeVariety, localizeCountry, localizeVariety } from '@/lib/coffeeReferenceI18n';
+import { useDnaImpactHistory } from '@/hooks/useDnaImpactHistory';
+import { buildDnaImpactSnapshot } from '@/lib/intelligence/dnaImpact';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -788,11 +790,12 @@ function Step6({ d, onSave, isSaving, saveError, saveLabel }: { d: WizardData; o
 // ─── Wizard shell ─────────────────────────────────────────────────────────────
 
 export default function AddTasting() {
-  const { copy } = useTastingCopy();
+  const { copy, language } = useTastingCopy();
   const { id } = useParams<{ id?: string }>();
   const isEditing = Boolean(id);
   const [, setLocation] = useLocation();
-  const { addTasting, updateTasting, getTasting } = useTastings();
+  const { tastings, addTasting, updateTasting, getTasting } = useTastings();
+  const { recordImpact } = useDnaImpactHistory();
   const existingTasting = id ? getTasting(id) : undefined;
   const draftStorageKey = id ? `${DRAFT_STORAGE_KEY}:edit:${id}` : DRAFT_STORAGE_KEY;
   const initialDraft = useRef<TastingDraftSnapshot | null>(readTastingDraft(draftStorageKey));
@@ -1027,7 +1030,8 @@ export default function AddTasting() {
         setLocation(`/tasting/${id}`);
       } else {
         const saved = addTasting(payload);
-        setLocation(`/coach/${saved.id}`);
+        recordImpact(buildDnaImpactSnapshot(tastings, saved, language));
+        setLocation(`/tasting/${saved.id}/dna-impact`);
       }
     } catch (error) {
       console.error('Failed to save tasting:', error);

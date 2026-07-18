@@ -22,8 +22,9 @@ import { ACHIEVEMENTS_STORAGE_KEY } from '@/hooks/useAchievements';
 import { WEEKLY_CHALLENGES_STORAGE_KEY } from '@/hooks/useWeeklyChallenges';
 import { EXAMS_STORAGE_KEY } from '@/hooks/useExams';
 import { LEARNING_STORAGE_KEY } from '@/hooks/useLearning';
+import { DNA_IMPACT_STORAGE_KEY } from '@/hooks/useDnaImpactHistory';
 
-const BACKUP_VERSION = '2.7';
+const BACKUP_VERSION = '2.8';
 const TASTINGS_KEY = 'coffee_journal_tastings';
 const PROFILE_KEY = 'coffee_journal_profile';
 const BOOKS_KEY = 'coffeemind_book_ratings';
@@ -41,6 +42,7 @@ interface BackupPayload {
     weeklyChallenges?: unknown;
     exams?: unknown;
     learning?: unknown;
+    dnaImpacts?: unknown;
   };
 }
 
@@ -107,6 +109,7 @@ export default function Backup() {
   const [weeklyChallengeStore] = useLocalStorage<unknown>(WEEKLY_CHALLENGES_STORAGE_KEY, null);
   const [examStore] = useLocalStorage<unknown>(EXAMS_STORAGE_KEY, null);
   const [learningStore] = useLocalStorage<unknown>(LEARNING_STORAGE_KEY, null);
+  const [dnaImpactStore] = useLocalStorage<unknown>(DNA_IMPACT_STORAGE_KEY, null);
   const { copy, locale } = useSystemCopy();
   const c = copy.backup;
   const fileRef = useRef<HTMLInputElement>(null);
@@ -126,8 +129,9 @@ export default function Backup() {
       weeklyChallenges: weeklyChallengeStore,
       exams: examStore,
       learning: learningStore,
+      dnaImpacts: dnaImpactStore,
     },
-  }), [achievementStore, books, c.deviceNote, examStore, learningStore, profile, tastings, weeklyChallengeStore]);
+  }), [achievementStore, books, c.deviceNote, dnaImpactStore, examStore, learningStore, profile, tastings, weeklyChallengeStore]);
 
   const summary = [
     { label: c.summary.tastings, value: tastings.length },
@@ -189,6 +193,9 @@ export default function Backup() {
     }
     if (importPreview.data.learning) {
       localStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify(importPreview.data.learning));
+    }
+    if (importPreview.data.dnaImpacts) {
+      localStorage.setItem(DNA_IMPACT_STORAGE_KEY, JSON.stringify(importPreview.data.dnaImpacts));
     }
     setStatus(c.restored);
     setTimeout(() => window.location.assign('/'), 500);

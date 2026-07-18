@@ -32,6 +32,7 @@ import { ACHIEVEMENTS_STORAGE_KEY } from '@/hooks/useAchievements';
 import { WEEKLY_CHALLENGES_STORAGE_KEY } from '@/hooks/useWeeklyChallenges';
 import { EXAMS_STORAGE_KEY } from '@/hooks/useExams';
 import { LEARNING_STORAGE_KEY } from '@/hooks/useLearning';
+import { DNA_IMPACT_STORAGE_KEY } from '@/hooks/useDnaImpactHistory';
 
 function Row({
   icon: Icon,
@@ -169,6 +170,7 @@ export default function Settings() {
     localStorage.removeItem(WEEKLY_CHALLENGES_STORAGE_KEY);
     localStorage.removeItem(EXAMS_STORAGE_KEY);
     localStorage.removeItem(LEARNING_STORAGE_KEY);
+    localStorage.removeItem(DNA_IMPACT_STORAGE_KEY);
     window.location.reload();
   };
 

@@ -1,6 +1,6 @@
 import { useLocation, useParams } from 'wouter';
 import { useTastings, Tasting } from '@/hooks/useTastings';
-import { ChevronLeft, Trash2, Pencil, Calendar, MapPin, Coffee, Droplets, Clock, Thermometer, Wind, Zap, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, Pencil, Calendar, MapPin, Coffee, Droplets, Clock, Thermometer, Wind, Zap, FileText, Dna } from 'lucide-react';
 import { ScoreBar } from '@/components/ScoreBar';
 import { FlavorRadar } from '@/components/FlavorRadar';
 import { flavorChipStyle, countryToFlag } from '@/lib/coffeeUtils';
@@ -8,6 +8,8 @@ import { localizeFlavor, useTastingCopy } from '@/lib/tastingI18n';
 import { localizeProcessing } from '@/lib/processingI18n';
 import { localizeBrewMethod } from '@/lib/brewMethodI18n';
 import { localizeCountry, localizeVariety } from '@/lib/coffeeReferenceI18n';
+import { useDnaImpactHistory } from '@/hooks/useDnaImpactHistory';
+import { getDnaImpactCopy } from '@/lib/dnaImpactI18n';
 
 // ─── Compat helpers ───────────────────────────────────────────────────────────
 
@@ -70,7 +72,9 @@ export default function TastingDetail() {
   const { id } = useParams<{ id: string }>();
   const { getTasting, deleteTasting } = useTastings();
   const { copy, locale, language } = useTastingCopy();
+  const { getImpact, removeImpact } = useDnaImpactHistory();
   const c = copy.detail;
+  const impactCopy = getDnaImpactCopy(language);
 
   const tasting = getTasting(id || '');
 
@@ -89,6 +93,7 @@ export default function TastingDetail() {
 
   const handleDelete = () => {
     if (window.confirm(c.deleteConfirm)) {
+      removeImpact(tasting.id);
       deleteTasting(tasting.id);
       setLocation('/');
     }
@@ -204,6 +209,23 @@ export default function TastingDetail() {
             </span>
           )}
         </div>
+
+        {getImpact(tasting.id) && (
+          <button
+            type="button"
+            onClick={() => setLocation(`/tasting/${tasting.id}/dna-impact`)}
+            className="flex w-full items-center gap-3 rounded-[22px] border border-primary/20 bg-primary/[0.08] px-4 py-3.5 text-left"
+          >
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <Dna size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-primary">{impactCopy.impactBadge}</p>
+              <p className="mt-1 text-[12px] text-foreground">{impactCopy.viewImpact}</p>
+            </div>
+            <ChevronRight size={17} className="text-primary" />
+          </button>
+        )}
 
         {/* ── Coffee info ─────────────────────────────────────────────────── */}
         <section>

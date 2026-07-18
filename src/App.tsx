@@ -22,6 +22,7 @@ import Challenges from '@/pages/challenges';
 import Exams from '@/pages/exams';
 import Learning from '@/pages/learning';
 import LearningLesson from '@/pages/learning-lesson';
+import DnaImpactPage from '@/pages/dna-impact';
 import NotFound from '@/pages/not-found';
 import { BottomNav } from '@/components/BottomNav';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -52,6 +53,7 @@ function App() {
                 <Route path="/" component={Home} />
                 <Route path="/add" component={AddTasting} />
                 <Route path="/tasting/:id/edit" component={AddTasting} />
+                <Route path="/tasting/:id/dna-impact" component={DnaImpactPage} />
                 <Route path="/tasting/:id" component={TastingDetail} />
                 <Route path="/coach/:id" component={Coach} />
                 <Route path="/stats" component={Stats} />

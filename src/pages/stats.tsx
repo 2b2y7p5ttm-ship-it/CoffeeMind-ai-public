@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
 import {
+  Activity,
   ArrowRight,
   ChevronRight,
   Coffee,
@@ -37,6 +38,8 @@ import {
   type DnaPeriod,
 } from '@/lib/intelligence/dnaEvolution';
 import { getDnaCopy } from '@/lib/dnaI18n';
+import { getDnaImpactCopy } from '@/lib/dnaImpactI18n';
+import { useDnaImpactHistory } from '@/hooks/useDnaImpactHistory';
 import { flavorChipStyle } from '@/lib/coffeeUtils';
 import { localizeFlavor } from '@/lib/tastingI18n';
 import { localizeProcessing } from '@/lib/processingI18n';
@@ -120,11 +123,13 @@ function metricLabel(key: DnaMetricKey, labels: Record<DnaMetricKey, string>): s
 
 export default function Stats() {
   const { tastings } = useTastings();
-  const { copy, language } = useSectionCopy();
+  const { copy, language, locale } = useSectionCopy();
   const [, setLocation] = useLocation();
   const [period, setPeriod] = useState<DnaPeriod>('all');
+  const { history: impactHistory } = useDnaImpactHistory();
   const statsCopy = copy.stats;
   const dnaCopy = getDnaCopy(language);
+  const impactCopy = getDnaImpactCopy(language);
 
   const comparison = useMemo(() => buildDnaComparison(tastings, period, language), [tastings, period, language]);
   const profile = useMemo(() => buildTasteProfile(comparison.activeTastings, language), [comparison.activeTastings, language]);
@@ -150,6 +155,11 @@ export default function Stats() {
     overallScore: dnaCopy.overallScore,
     diversity: dnaCopy.diversity,
   };
+
+  const recentImpactHistory = useMemo(() => impactHistory
+    .map((snapshot) => ({ snapshot, tasting: tastings.find((item) => item.id === snapshot.tastingId) }))
+    .filter((item) => Boolean(item.tasting))
+    .slice(0, 4), [impactHistory, tastings]);
 
   const mostRelevantDeltas = useMemo(() => {
     return [...comparison.deltas]
@@ -273,6 +283,40 @@ export default function Stats() {
               </div>
             ) : (
               <div className="rounded-[22px] border border-dashed border-border bg-card/50 p-5 text-[12px] leading-5 text-muted-foreground">{dnaCopy.notEnoughHistory}</div>
+            )}
+          </motion.section>
+
+          <motion.section {...reveal}>
+            <SectionHeading icon={Activity} title={impactCopy.historyTitle} description={impactCopy.historyHint} />
+            {recentImpactHistory.length ? (
+              <div className="space-y-3">
+                {recentImpactHistory.map(({ snapshot, tasting }) => {
+                  if (!tasting) return null;
+                  const strongest = snapshot.metrics.find((metric) => metric.key === snapshot.strongestMetric);
+                  return (
+                    <button
+                      key={snapshot.tastingId}
+                      type="button"
+                      onClick={() => setLocation(`/tasting/${snapshot.tastingId}/dna-impact`)}
+                      className="flex w-full items-center gap-3 rounded-[22px] border border-border bg-card p-4 text-left transition-transform active:scale-[0.985]"
+                    >
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+                        <Dna size={18} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-serif text-[16px] text-foreground">{tasting.coffeeName}</p>
+                        <p className="mt-1 truncate text-[10px] text-muted-foreground">
+                          {new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(new Date(snapshot.createdAt))}
+                          {strongest ? ` · ${impactCopy.metrics[strongest.key]} ${strongest.delta > 0 ? '+' : ''}${strongest.delta.toFixed(strongest.key === 'diversity' ? 0 : 2)}${strongest.key === 'diversity' ? '%' : ''}` : ''}
+                        </p>
+                      </div>
+                      <ChevronRight size={17} className="shrink-0 text-muted-foreground" />
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-[22px] border border-dashed border-border bg-card/50 p-5 text-[12px] leading-5 text-muted-foreground">{impactCopy.noHistory}</div>
             )}
           </motion.section>
 
