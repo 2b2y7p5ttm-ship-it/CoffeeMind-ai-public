@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation, useParams } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Check, Coffee, Droplets, Wind, Sparkles, NotebookPen, Brain } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Check, Coffee, Droplets, Wind, Sparkles, NotebookPen, Brain, Zap, SlidersHorizontal, Clock3, RotateCcw, BookmarkPlus, Calculator, History, Trash2 } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +18,20 @@ import { BREW_METHOD_VALUES, canonicalizeBrewMethod, localizeBrewMethod } from '
 import { COUNTRY_VALUES, VARIETY_VALUES, canonicalizeCountry, canonicalizeVariety, localizeCountry, localizeVariety } from '@/lib/coffeeReferenceI18n';
 import { useDnaImpactHistory } from '@/hooks/useDnaImpactHistory';
 import { buildDnaImpactSnapshot } from '@/lib/intelligence/dnaImpact';
+import {
+  BUILT_IN_RECIPE_TEMPLATES,
+  calculateBeverageWeight,
+  calculateRatio,
+  findPreviousBrew,
+  getRecentTastingValues,
+  readCustomRecipeTemplates,
+  recipeFromTasting,
+  writeCustomRecipeTemplates,
+  type RecipeTemplate,
+  type RecentTastingValues,
+  type TastingMode,
+} from '@/lib/tasting3';
+import { useTasting3Copy } from '@/lib/tasting3I18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +44,7 @@ interface WizardData {
   brewMethod: string; doseGrams: string; beverageWeightGrams: string;
   brewTimeSeconds: string; waterTemperatureCelsius: string;
   grinderModel: string; grindSetting: string; waterName: string; waterTdsPpm: string; bloomSeconds: string;
+  targetRatio: string;
   // Step 3 — Sensory
   dryAroma: string; wetAroma: string; firstImpression: string;
   aromaScore: number; flavorScore: number;
@@ -50,7 +65,7 @@ const DEFAULT: WizardData = {
   producer: '', washingStation: '', elevationMeters: '', harvestYear: '', lotNumber: '',
   brewMethod: 'V60', doseGrams: '', beverageWeightGrams: '',
   brewTimeSeconds: '', waterTemperatureCelsius: '',
-  grinderModel: '', grindSetting: '', waterName: '', waterTdsPpm: '', bloomSeconds: '',
+  grinderModel: '', grindSetting: '', waterName: '', waterTdsPpm: '', bloomSeconds: '', targetRatio: '15',
   dryAroma: '', wetAroma: '', firstImpression: '',
   aromaScore: 7, flavorScore: 7,
   acidity: 6, sweetness: 7, bitterness: 4, body: 6,
@@ -84,6 +99,7 @@ function tastingToWizardData(tasting: Tasting): WizardData {
     waterName: tasting.waterName || '',
     waterTdsPpm: tasting.waterTdsPpm || '',
     bloomSeconds: tasting.bloomSeconds || '',
+    targetRatio: calculateRatio(tasting.doseGrams || tasting.dose || '', tasting.beverageWeightGrams || tasting.yield || '')?.toFixed(1) || '15',
     dryAroma: tasting.dryAroma || tasting.aroma || '',
     wetAroma: tasting.wetAroma || '',
     firstImpression: tasting.firstImpression || tasting.flavor || '',
@@ -111,6 +127,7 @@ const DRAFT_STORAGE_KEY = 'coffeemind:tasting-draft:v1';
 interface TastingDraftSnapshot {
   data: WizardData;
   step: number;
+  mode: TastingMode;
   updatedAt: string;
 }
 
@@ -124,7 +141,8 @@ function readTastingDraft(storageKey = DRAFT_STORAGE_KEY): TastingDraftSnapshot 
 
     return {
       data: { ...DEFAULT, ...parsed.data },
-      step: Math.min(6, Math.max(1, parsed.step)),
+      step: Math.min(7, Math.max(1, parsed.step)),
+      mode: parsed.mode === 'quick' ? 'quick' : 'professional',
       updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
     };
   } catch (error) {
@@ -133,11 +151,12 @@ function readTastingDraft(storageKey = DRAFT_STORAGE_KEY): TastingDraftSnapshot 
   }
 }
 
-function writeTastingDraft(data: WizardData, step: number, storageKey = DRAFT_STORAGE_KEY) {
+function writeTastingDraft(data: WizardData, step: number, mode: TastingMode, storageKey = DRAFT_STORAGE_KEY) {
   try {
     const snapshot: TastingDraftSnapshot = {
       data,
       step,
+      mode,
       updatedAt: new Date().toISOString(),
     };
     localStorage.setItem(storageKey, JSON.stringify(snapshot));
@@ -154,7 +173,22 @@ function clearTastingDraft(storageKey = DRAFT_STORAGE_KEY) {
   }
 }
 
+function isDraftMeaningful(data: WizardData) {
+  return Boolean(
+    data.coffeeName.trim() ||
+    data.roaster.trim() ||
+    data.country.trim() ||
+    data.doseGrams.trim() ||
+    data.beverageWeightGrams.trim() ||
+    data.topThreeDescriptors.length ||
+    data.additionalDescriptors.length ||
+    data.notes.trim()
+  );
+}
+
 const STEP_ICONS = [Coffee, Droplets, Wind, Sparkles, NotebookPen, Brain] as const;
+const QUICK_FLOW = [1, 7, 6] as const;
+const PROFESSIONAL_FLOW = [1, 2, 3, 4, 5, 6] as const;
 const PROCESS_OPTIONS = ['Washed', 'Natural', 'Honey', 'Anaerobic', 'Infused', 'Wet-Hulled', 'Other'];
 const BREW_METHODS = [...BREW_METHOD_VALUES];
 
@@ -173,8 +207,12 @@ const inputCls = 'bg-card/60 border-white/[0.08] focus-visible:ring-primary/40 h
 
 function StepIntro({ step }: { step: number }) {
   const { copy } = useTastingCopy();
-  const meta = copy.wizard.steps[step - 1];
-  const Icon = STEP_ICONS[step - 1];
+  const { copy3 } = useTasting3Copy();
+  const meta = step === 7
+    ? { title: copy3.quickStepTitle, eyebrow: copy3.quickStepEyebrow, hint: copy3.quickStepHint }
+    : copy.wizard.steps[step - 1];
+  const Icon = step === 7 ? Zap : STEP_ICONS[step - 1];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -234,6 +272,37 @@ function PillRow({ options, value, onChange, getLabel = (option) => option }: { 
   );
 }
 
+function RecentChips({
+  values,
+  onSelect,
+  localize = (value) => value,
+}: {
+  values: string[];
+  onSelect: (value: string) => void;
+  localize?: (value: string) => string;
+}) {
+  const { copy3 } = useTasting3Copy();
+  if (values.length === 0) return null;
+
+  return (
+    <div className="pt-1">
+      <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-semibold mb-2">{copy3.recent}</p>
+      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+        {values.map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onSelect(value)}
+            className="flex-shrink-0 rounded-full border border-white/[0.08] bg-card/45 px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
+          >
+            {localize(value)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (v: string[]) => void; placeholder: string }) {
   const { copy } = useTastingCopy();
   const [input, setInput] = useState('');
@@ -271,108 +340,401 @@ function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (
   );
 }
 
+
+function ModePicker({
+  onSelect,
+  onClose,
+}: {
+  onSelect: (mode: TastingMode) => void;
+  onClose: () => void;
+}) {
+  const { copy3 } = useTasting3Copy();
+
+  const options: Array<{
+    mode: TastingMode;
+    icon: typeof Zap;
+    title: string;
+    description: string;
+    badge: string;
+  }> = [
+    {
+      mode: 'quick',
+      icon: Zap,
+      title: copy3.quickTitle,
+      description: copy3.quickDescription,
+      badge: copy3.quickBadge,
+    },
+    {
+      mode: 'professional',
+      icon: SlidersHorizontal,
+      title: copy3.professionalTitle,
+      description: copy3.professionalDescription,
+      badge: copy3.professionalBadge,
+    },
+  ];
+
+  return (
+    <div className="min-h-[100dvh] bg-background px-4 iphone-safe-top iphone-footer-safe">
+      <div className="max-w-lg mx-auto">
+        <div className="flex items-center justify-between mb-10">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-10 h-10 rounded-full bg-card/60 border border-white/[0.08] flex items-center justify-center text-muted-foreground"
+          >
+            <X size={18} />
+          </button>
+          <span className="text-[10px] uppercase tracking-[0.22em] text-primary font-bold">CoffeeMind</span>
+          <div className="w-10" />
+        </div>
+
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold mb-3">{copy3.changeMode}</p>
+          <h1 className="font-serif text-[2rem] leading-tight text-foreground">{copy3.modeTitle}</h1>
+          <p className="text-[14px] text-muted-foreground leading-relaxed mt-3 mb-7">{copy3.modeSubtitle}</p>
+
+          <div className="space-y-3">
+            {options.map(({ mode, icon: Icon, title, description, badge }, index) => (
+              <motion.button
+                key={mode}
+                type="button"
+                onClick={() => onSelect(mode)}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.08 + index * 0.06 }}
+                whileTap={{ scale: 0.985 }}
+                className="w-full text-left coffee-panel rounded-[26px] p-5 border border-white/[0.07] hover:border-primary/30 transition-colors"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                    <Icon size={21} className="text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="font-serif text-[1.35rem] text-foreground">{title}</h2>
+                      <span className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-[9px] uppercase tracking-widest text-primary font-bold whitespace-nowrap">
+                        {badge}
+                      </span>
+                    </div>
+                    <p className="text-[13px] text-muted-foreground leading-relaxed mt-2">{description}</p>
+                  </div>
+                  <ChevronRight size={18} className="text-muted-foreground/40 mt-3 flex-shrink-0" />
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+function DraftRecovery({
+  draft,
+  onContinue,
+  onDiscard,
+  onClose,
+}: {
+  draft: TastingDraftSnapshot;
+  onContinue: () => void;
+  onDiscard: () => void;
+  onClose: () => void;
+}) {
+  const { copy3, locale, fill3 } = useTasting3Copy();
+  const date = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(draft.updatedAt));
+
+  return (
+    <div className="min-h-[100dvh] bg-background px-4 iphone-safe-top iphone-footer-safe flex items-center">
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.985 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className="max-w-md mx-auto w-full coffee-panel rounded-[30px] p-6 border border-white/[0.08]"
+      >
+        <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5">
+          <Clock3 size={24} className="text-primary" />
+        </div>
+        <h1 className="font-serif text-[1.7rem] leading-tight text-foreground">{copy3.draftTitle}</h1>
+        <p className="text-[13px] text-muted-foreground leading-relaxed mt-3">{copy3.draftDescription}</p>
+
+        <div className="mt-5 rounded-2xl bg-card/50 border border-white/[0.06] p-4">
+          <p className="font-medium text-foreground truncate">{draft.data.coffeeName || 'CoffeeMind'}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{fill3(copy3.draftUpdated, { date })}</p>
+        </div>
+
+        <div className="grid gap-2 mt-6">
+          <button
+            type="button"
+            onClick={onContinue}
+            className="h-12 rounded-full bg-primary text-primary-foreground font-semibold text-[14px]"
+          >
+            {copy3.continueDraft}
+          </button>
+          <button
+            type="button"
+            onClick={onDiscard}
+            className="h-12 rounded-full bg-card/60 border border-white/[0.08] text-foreground font-semibold text-[14px]"
+          >
+            {copy3.startFresh}
+          </button>
+          <button type="button" onClick={onClose} className="h-10 text-[12px] text-muted-foreground">
+            {copy3.close}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── Step 1 — Coffee ──────────────────────────────────────────────────────────
 
-function Step1({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void }) {
+function Step1({
+  d,
+  u,
+  mode,
+  recent,
+}: {
+  d: WizardData;
+  u: (p: Partial<WizardData>) => void;
+  mode: TastingMode;
+  recent: RecentTastingValues;
+}) {
   const { copy, language } = useTastingCopy();
+
   return (
     <div className="space-y-5">
       <CoachHint title={copy.wizard.coffeeTipTitle}>
-        {copy.wizard.coffeeTip}
+        {mode === 'quick'
+          ? (language === 'ru'
+              ? 'Для быстрой записи достаточно названия, метода и общего контекста. Подробности можно добавить позже через редактирование.'
+              : 'A quick record only needs the coffee, method and basic context. You can add details later by editing it.')
+          : copy.wizard.coffeeTip}
       </CoachHint>
 
       <Field label={copy.wizard.coffeeName}>
-        <Input value={d.coffeeName} onChange={(e) => u({ coffeeName: e.target.value })}
-          placeholder={copy.wizard.placeholders.coffeeName} autoFocus
+        <Input
+          value={d.coffeeName}
+          onChange={(e) => u({ coffeeName: e.target.value })}
+          placeholder={copy.wizard.placeholders.coffeeName}
+          autoFocus
           className={`${inputCls} text-[18px] font-serif h-14`}
-          data-testid="input-coffee-name" />
+          data-testid="input-coffee-name"
+        />
+        <RecentChips values={recent.coffees} onSelect={(coffeeName) => u({ coffeeName })} />
       </Field>
 
       <Field label={copy.wizard.roaster}>
-        <Input value={d.roaster} onChange={(e) => u({ roaster: e.target.value })}
-          placeholder={copy.wizard.placeholders.roaster} className={inputCls} />
+        <Input
+          value={d.roaster}
+          onChange={(e) => u({ roaster: e.target.value })}
+          placeholder={copy.wizard.placeholders.roaster}
+          className={inputCls}
+        />
+        <RecentChips values={recent.roasters} onSelect={(roaster) => u({ roaster })} />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className={mode === 'quick' ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-2 gap-3'}>
         <Field label={copy.wizard.country}>
-          <Input value={localizeCountry(d.country, language)} onChange={(e) => u({ country: canonicalizeCountry(e.target.value) })}
-            placeholder={copy.wizard.placeholders.country} className={inputCls} list="coffeemind-country-options" />
+          <Input
+            value={localizeCountry(d.country, language)}
+            onChange={(e) => u({ country: canonicalizeCountry(e.target.value) })}
+            placeholder={copy.wizard.placeholders.country}
+            className={inputCls}
+            list="coffeemind-country-options"
+          />
           <datalist id="coffeemind-country-options">
             {COUNTRY_VALUES.map((country) => <option key={country} value={localizeCountry(country, language)} />)}
           </datalist>
+          <RecentChips
+            values={recent.countries}
+            onSelect={(country) => u({ country: canonicalizeCountry(country) })}
+            localize={(country) => localizeCountry(country, language)}
+          />
         </Field>
-        <Field label={copy.wizard.region}>
-          <Input value={d.region} onChange={(e) => u({ region: e.target.value })}
-            placeholder={copy.wizard.placeholders.region} className={inputCls} />
-        </Field>
+
+        {mode === 'professional' && (
+          <Field label={copy.wizard.region}>
+            <Input
+              value={d.region}
+              onChange={(e) => u({ region: e.target.value })}
+              placeholder={copy.wizard.placeholders.region}
+              className={inputCls}
+            />
+          </Field>
+        )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label={copy.wizard.farm}>
-          <Input value={d.farm} onChange={(e) => u({ farm: e.target.value })}
-            placeholder={copy.wizard.placeholders.farm} className={inputCls} />
-        </Field>
-        <Field label={copy.wizard.variety}>
-          <Input value={localizeVariety(d.variety, language)} onChange={(e) => u({ variety: canonicalizeVariety(e.target.value) })}
-            placeholder={copy.wizard.placeholders.variety} className={inputCls} list="coffeemind-variety-options" />
-          <datalist id="coffeemind-variety-options">
-            {VARIETY_VALUES.map((variety) => <option key={variety} value={localizeVariety(variety, language)} />)}
-          </datalist>
-        </Field>
-      </div>
+      {mode === 'professional' && (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={copy.wizard.farm}>
+              <Input
+                value={d.farm}
+                onChange={(e) => u({ farm: e.target.value })}
+                placeholder={copy.wizard.placeholders.farm}
+                className={inputCls}
+              />
+            </Field>
+            <Field label={copy.wizard.variety}>
+              <Input
+                value={localizeVariety(d.variety, language)}
+                onChange={(e) => u({ variety: canonicalizeVariety(e.target.value) })}
+                placeholder={copy.wizard.placeholders.variety}
+                className={inputCls}
+                list="coffeemind-variety-options"
+              />
+              <datalist id="coffeemind-variety-options">
+                {VARIETY_VALUES.map((variety) => <option key={variety} value={localizeVariety(variety, language)} />)}
+              </datalist>
+            </Field>
+          </div>
 
-      <div className="coffee-panel rounded-[22px] p-4 space-y-4">
-        <p className="text-[10px] uppercase tracking-widest text-primary font-bold">{copy.wizard.extendedBean}</p>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={copy.wizard.producer}>
-            <Input value={d.producer} onChange={(e) => u({ producer: e.target.value })}
-              placeholder={copy.wizard.placeholders.producer} className={inputCls} />
-          </Field>
-          <Field label={copy.wizard.washingStation}>
-            <Input value={d.washingStation} onChange={(e) => u({ washingStation: e.target.value })}
-              placeholder={copy.wizard.placeholders.washingStation} className={inputCls} />
-          </Field>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          <Field label={copy.wizard.elevation}>
-            <Input value={d.elevationMeters} onChange={(e) => u({ elevationMeters: e.target.value })}
-              placeholder={copy.wizard.placeholders.elevation} inputMode="numeric" className={inputCls} />
-          </Field>
-          <Field label={copy.wizard.harvest}>
-            <Input value={d.harvestYear} onChange={(e) => u({ harvestYear: e.target.value })}
-              placeholder={copy.wizard.placeholders.harvest} inputMode="numeric" className={inputCls} />
-          </Field>
-          <Field label={copy.wizard.lot}>
-            <Input value={d.lotNumber} onChange={(e) => u({ lotNumber: e.target.value })}
-              placeholder={copy.wizard.placeholders.lot} className={inputCls} />
-          </Field>
-        </div>
-      </div>
+          <div className="coffee-panel rounded-[22px] p-4 space-y-4">
+            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">{copy.wizard.extendedBean}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={copy.wizard.producer}>
+                <Input
+                  value={d.producer}
+                  onChange={(e) => u({ producer: e.target.value })}
+                  placeholder={copy.wizard.placeholders.producer}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label={copy.wizard.washingStation}>
+                <Input
+                  value={d.washingStation}
+                  onChange={(e) => u({ washingStation: e.target.value })}
+                  placeholder={copy.wizard.placeholders.washingStation}
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <Field label={copy.wizard.elevation}>
+                <Input
+                  value={d.elevationMeters}
+                  onChange={(e) => u({ elevationMeters: e.target.value })}
+                  placeholder={copy.wizard.placeholders.elevation}
+                  inputMode="numeric"
+                  className={inputCls}
+                />
+              </Field>
+              <Field label={copy.wizard.harvest}>
+                <Input
+                  value={d.harvestYear}
+                  onChange={(e) => u({ harvestYear: e.target.value })}
+                  placeholder={copy.wizard.placeholders.harvest}
+                  inputMode="numeric"
+                  className={inputCls}
+                />
+              </Field>
+              <Field label={copy.wizard.lot}>
+                <Input
+                  value={d.lotNumber}
+                  onChange={(e) => u({ lotNumber: e.target.value })}
+                  placeholder={copy.wizard.placeholders.lot}
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+          </div>
+        </>
+      )}
 
       <Field label={copy.wizard.processing}>
         <PillRow
           options={PROCESS_OPTIONS}
           value={d.processing}
-          onChange={(v) => u({ processing: v })}
+          onChange={(processing) => u({ processing })}
           getLabel={(value) => localizeProcessing(value, language)}
+        />
+        <RecentChips
+          values={recent.processes}
+          onSelect={(processing) => u({ processing })}
+          localize={(processing) => localizeProcessing(processing, language)}
         />
       </Field>
 
-      <Field label={copy.wizard.roastDate}>
-        <Input type="date" value={d.roastDate} onChange={(e) => u({ roastDate: e.target.value })}
-          className={`${inputCls} text-[13px]`} />
-      </Field>
+      {mode === 'quick' ? (
+        <Field label={copy.wizard.brewMethod}>
+          <PillRow
+            options={BREW_METHODS}
+            value={d.brewMethod}
+            onChange={(brewMethod) => u({ brewMethod })}
+            getLabel={(method) => localizeBrewMethod(method, language)}
+          />
+          <RecentChips
+            values={recent.brewMethods}
+            onSelect={(brewMethod) => u({ brewMethod: canonicalizeBrewMethod(brewMethod) })}
+            localize={(method) => localizeBrewMethod(method, language)}
+          />
+        </Field>
+      ) : (
+        <Field label={copy.wizard.roastDate}>
+          <Input
+            type="date"
+            value={d.roastDate}
+            onChange={(e) => u({ roastDate: e.target.value })}
+            className={`${inputCls} text-[13px]`}
+          />
+        </Field>
+      )}
     </div>
   );
 }
 
 // ─── Step 2 — Brewing ─────────────────────────────────────────────────────────
 
-function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void }) {
+function Step2({
+  d,
+  u,
+  recent,
+  templates,
+  onSaveTemplate,
+  onDeleteTemplate,
+  previous,
+}: {
+  d: WizardData;
+  u: (p: Partial<WizardData>) => void;
+  recent: RecentTastingValues;
+  templates: RecipeTemplate[];
+  onSaveTemplate: () => void;
+  onDeleteTemplate: (id: string) => void;
+  previous?: Tasting;
+}) {
   const { copy, language } = useTastingCopy();
-  const ratio = d.doseGrams && d.beverageWeightGrams && Number(d.doseGrams) > 0
-    ? (Number(d.beverageWeightGrams) / Number(d.doseGrams)).toFixed(1)
-    : null;
+  const { copy3, locale, fill3 } = useTasting3Copy();
+  const ratio = calculateRatio(d.doseGrams, d.beverageWeightGrams);
+  const targetRatioValue = Number(d.targetRatio.replace(',', '.'));
+  const ratioDeviation = ratio && Number.isFinite(targetRatioValue) && targetRatioValue > 0
+    ? Math.abs(ratio - targetRatioValue) / targetRatioValue
+    : 0;
+
+  const applyTemplate = (template: RecipeTemplate) => {
+    u({
+      brewMethod: canonicalizeBrewMethod(template.method),
+      doseGrams: template.doseGrams,
+      beverageWeightGrams: template.beverageWeightGrams,
+      brewTimeSeconds: template.brewTimeSeconds,
+      waterTemperatureCelsius: template.waterTemperatureCelsius,
+      bloomSeconds: template.bloomSeconds,
+      targetRatio: template.targetRatio,
+    });
+  };
+
+  const calculateYield = () => {
+    const nextYield = calculateBeverageWeight(d.doseGrams, d.targetRatio);
+    if (nextYield) u({ beverageWeightGrams: nextYield });
+  };
+
+  const previousRecipe = previous ? recipeFromTasting(previous) : undefined;
+  const previousDate = previous
+    ? new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(previous.createdAt))
+    : '';
 
   return (
     <div className="space-y-5">
@@ -380,29 +742,167 @@ function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
         {copy.wizard.recipeTip}
       </CoachHint>
 
+      <div className="coffee-panel rounded-[24px] p-4 space-y-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-primary font-bold">{copy3.recipeTemplates}</p>
+          <p className="text-[12px] text-muted-foreground mt-1">{copy3.recipeTemplatesHint}</p>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {templates.map((template) => (
+            <div key={template.id} className="relative flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => applyTemplate(template)}
+                className="w-[178px] text-left rounded-2xl border border-white/[0.08] bg-card/55 p-3.5 hover:border-primary/30 transition-colors"
+              >
+                <p className="text-[12px] font-semibold text-foreground pr-5 line-clamp-2">
+                  {copy3.builtInNames[template.id] || `${copy3.customTemplate}: ${localizeBrewMethod(template.method, language)}`}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  {template.doseGrams} g · {template.beverageWeightGrams} g · 1:{template.targetRatio}
+                </p>
+              </button>
+              {template.custom && (
+                <button
+                  type="button"
+                  aria-label={copy3.deleteTemplate}
+                  onClick={() => onDeleteTemplate(template.id)}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-background/75 border border-white/[0.08] flex items-center justify-center text-muted-foreground hover:text-red-400"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {previous && previousRecipe && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-[22px] border border-primary/20 bg-primary/[0.06] p-4"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+              <History size={17} className="text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] uppercase tracking-widest text-primary font-bold">{copy3.previousBrew}</p>
+              <p className="text-[12px] text-muted-foreground mt-1">{copy3.previousBrewHint}</p>
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                <span className="rounded-full bg-card/60 border border-white/[0.08] px-2.5 py-1 text-[10px] text-foreground">
+                  {localizeBrewMethod(previousRecipe.method, language)}
+                </span>
+                {previousRecipe.doseGrams && previousRecipe.beverageWeightGrams && (
+                  <span className="rounded-full bg-card/60 border border-white/[0.08] px-2.5 py-1 text-[10px] text-foreground">
+                    {previousRecipe.doseGrams} g → {previousRecipe.beverageWeightGrams} g
+                  </span>
+                )}
+                <span className="rounded-full bg-card/60 border border-white/[0.08] px-2.5 py-1 text-[10px] text-foreground">
+                  {fill3(copy3.previousScore, { score: previous.overallScore })} · {previousDate}
+                </span>
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => applyTemplate(previousRecipe)}
+            className="mt-4 w-full h-10 rounded-full border border-primary/25 bg-primary/10 text-primary text-[12px] font-semibold flex items-center justify-center gap-2"
+          >
+            <RotateCcw size={14} />
+            {copy3.repeatRecipe}
+          </button>
+        </motion.div>
+      )}
+
       <Field label={copy.wizard.brewMethod}>
-        <PillRow options={BREW_METHODS} value={d.brewMethod} onChange={(v) => u({ brewMethod: v })} getLabel={(method) => localizeBrewMethod(method, language)} />
+        <PillRow
+          options={BREW_METHODS}
+          value={d.brewMethod}
+          onChange={(brewMethod) => u({ brewMethod })}
+          getLabel={(method) => localizeBrewMethod(method, language)}
+        />
+        <RecentChips
+          values={recent.brewMethods}
+          onSelect={(brewMethod) => u({ brewMethod: canonicalizeBrewMethod(brewMethod) })}
+          localize={(method) => localizeBrewMethod(method, language)}
+        />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={copy.wizard.dose}>
-          <Input value={d.doseGrams} onChange={(e) => u({ doseGrams: e.target.value })}
-            placeholder={copy.wizard.placeholders.dose} inputMode="decimal" className={inputCls} />
+          <Input
+            value={d.doseGrams}
+            onChange={(e) => u({ doseGrams: e.target.value })}
+            placeholder={copy.wizard.placeholders.dose}
+            inputMode="decimal"
+            className={inputCls}
+          />
         </Field>
         <Field label={copy.wizard.yield}>
-          <Input value={d.beverageWeightGrams} onChange={(e) => u({ beverageWeightGrams: e.target.value })}
-            placeholder={copy.wizard.placeholders.yield} inputMode="decimal" className={inputCls} />
+          <Input
+            value={d.beverageWeightGrams}
+            onChange={(e) => u({ beverageWeightGrams: e.target.value })}
+            placeholder={copy.wizard.placeholders.yield}
+            inputMode="decimal"
+            className={inputCls}
+          />
         </Field>
+      </div>
+
+      <div className="rounded-[22px] border border-white/[0.07] bg-card/40 p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <Calculator size={16} className="text-primary" />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold text-foreground">{copy3.targetRatio}</p>
+            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{copy3.ratioHint}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-[1fr_auto] gap-2">
+          <Input
+            value={d.targetRatio}
+            onChange={(e) => u({ targetRatio: e.target.value })}
+            inputMode="decimal"
+            placeholder="15"
+            className={inputCls}
+          />
+          <button
+            type="button"
+            onClick={calculateYield}
+            className="h-12 rounded-xl bg-primary text-primary-foreground px-4 text-[12px] font-semibold whitespace-nowrap"
+          >
+            {copy3.calculateYield}
+          </button>
+        </div>
+        {(!Number.isFinite(targetRatioValue) || targetRatioValue <= 0) && d.targetRatio && (
+          <p className="text-[11px] text-red-400">{copy3.invalidRatio}</p>
+        )}
+        {ratioDeviation > 0.15 && (
+          <p className="text-[11px] text-amber-400">{copy3.ratioDeviation}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={copy.wizard.time}>
-          <Input value={d.brewTimeSeconds} onChange={(e) => u({ brewTimeSeconds: e.target.value })}
-            placeholder={copy.wizard.placeholders.time} inputMode="numeric" className={inputCls} />
+          <Input
+            value={d.brewTimeSeconds}
+            onChange={(e) => u({ brewTimeSeconds: e.target.value })}
+            placeholder={copy.wizard.placeholders.time}
+            inputMode="numeric"
+            className={inputCls}
+          />
         </Field>
         <Field label={copy.wizard.temperature}>
-          <Input value={d.waterTemperatureCelsius} onChange={(e) => u({ waterTemperatureCelsius: e.target.value })}
-            placeholder={copy.wizard.placeholders.temperature} inputMode="decimal" className={inputCls} />
+          <Input
+            value={d.waterTemperatureCelsius}
+            onChange={(e) => u({ waterTemperatureCelsius: e.target.value })}
+            placeholder={copy.wizard.placeholders.temperature}
+            inputMode="decimal"
+            className={inputCls}
+          />
         </Field>
       </div>
 
@@ -410,28 +910,53 @@ function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
         <p className="text-[10px] uppercase tracking-widest text-primary font-bold">{copy.wizard.equipment}</p>
         <div className="grid grid-cols-2 gap-3">
           <Field label={copy.wizard.grinder}>
-            <Input value={d.grinderModel} onChange={(e) => u({ grinderModel: e.target.value })}
-              placeholder={copy.wizard.placeholders.grinder} className={inputCls} />
+            <Input
+              value={d.grinderModel}
+              onChange={(e) => u({ grinderModel: e.target.value })}
+              placeholder={copy.wizard.placeholders.grinder}
+              className={inputCls}
+            />
+            <RecentChips values={recent.grinders} onSelect={(grinderModel) => u({ grinderModel })} />
           </Field>
           <Field label={copy.wizard.grindSetting}>
-            <Input value={d.grindSetting} onChange={(e) => u({ grindSetting: e.target.value })}
-              placeholder={copy.wizard.placeholders.grindSetting} className={inputCls} />
+            <Input
+              value={d.grindSetting}
+              onChange={(e) => u({ grindSetting: e.target.value })}
+              placeholder={copy.wizard.placeholders.grindSetting}
+              className={inputCls}
+            />
+            <RecentChips values={recent.grindSettings} onSelect={(grindSetting) => u({ grindSetting })} />
           </Field>
         </div>
         <div className="grid grid-cols-3 gap-2">
           <Field label={copy.wizard.water}>
-            <Input value={d.waterName} onChange={(e) => u({ waterName: e.target.value })}
-              placeholder={copy.wizard.placeholders.water} className={inputCls} />
+            <Input
+              value={d.waterName}
+              onChange={(e) => u({ waterName: e.target.value })}
+              placeholder={copy.wizard.placeholders.water}
+              className={inputCls}
+            />
           </Field>
           <Field label="TDS, ppm">
-            <Input value={d.waterTdsPpm} onChange={(e) => u({ waterTdsPpm: e.target.value })}
-              placeholder={copy.wizard.placeholders.waterTds} inputMode="numeric" className={inputCls} />
+            <Input
+              value={d.waterTdsPpm}
+              onChange={(e) => u({ waterTdsPpm: e.target.value })}
+              placeholder={copy.wizard.placeholders.waterTds}
+              inputMode="numeric"
+              className={inputCls}
+            />
           </Field>
           <Field label={copy.wizard.bloom}>
-            <Input value={d.bloomSeconds} onChange={(e) => u({ bloomSeconds: e.target.value })}
-              placeholder={copy.wizard.placeholders.bloom} inputMode="numeric" className={inputCls} />
+            <Input
+              value={d.bloomSeconds}
+              onChange={(e) => u({ bloomSeconds: e.target.value })}
+              placeholder={copy.wizard.placeholders.bloom}
+              inputMode="numeric"
+              className={inputCls}
+            />
           </Field>
         </div>
+        <RecentChips values={recent.waters} onSelect={(waterName) => u({ waterName })} />
       </div>
 
       <AnimatePresence>
@@ -443,10 +968,20 @@ function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
             className="bg-primary/[0.07] border border-primary/20 rounded-2xl px-4 py-3 flex justify-between items-center"
           >
             <span className="text-[12px] text-muted-foreground font-medium">{copy.wizard.brewRatio}</span>
-            <span className="font-serif text-primary text-xl">1 : {ratio}</span>
+            <span className="font-serif text-primary text-xl">1 : {ratio.toFixed(1)}</span>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <button
+        type="button"
+        onClick={onSaveTemplate}
+        disabled={!d.doseGrams || !d.beverageWeightGrams}
+        className="w-full h-11 rounded-full border border-white/[0.08] bg-card/50 text-[12px] font-semibold text-foreground flex items-center justify-center gap-2 disabled:opacity-35"
+      >
+        <BookmarkPlus size={15} className="text-primary" />
+        {copy3.saveTemplate}
+      </button>
     </div>
   );
 }
@@ -607,6 +1142,59 @@ function Step4({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
           <p className="text-[10px] text-muted-foreground/40 mt-1.5">{copy.wizard.descriptorHint}</p>
         </Field>
       </div>
+    </div>
+  );
+}
+
+
+function QuickImpressionStep({
+  d,
+  u,
+}: {
+  d: WizardData;
+  u: (p: Partial<WizardData>) => void;
+}) {
+  const { copy } = useTastingCopy();
+  const { copy3 } = useTasting3Copy();
+  const MAX = 3;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[13px] font-semibold text-foreground">{copy.wizard.mainNotes}</p>
+          <p className="text-muted-foreground text-[12px] mt-0.5">{copy.wizard.mainNotesHint}</p>
+        </div>
+        <span className={`flex-shrink-0 text-[12px] font-bold px-3 py-1 rounded-full ${d.topThreeDescriptors.length === MAX ? 'bg-primary/20 text-primary' : 'bg-card text-muted-foreground'}`}>
+          {d.topThreeDescriptors.length} / {MAX}
+        </span>
+      </div>
+
+      <FlavorWheel
+        selected={d.topThreeDescriptors}
+        onChange={(next) => u({ topThreeDescriptors: next })}
+        maxSelected={MAX}
+      />
+
+      <div className="bg-primary/[0.07] border border-primary/20 rounded-[24px] p-5">
+        <ScoreSlider
+          label={copy.wizard.overallScore}
+          value={d.overallScore}
+          onChange={(overallScore) => u({ overallScore })}
+          min={50}
+          max={100}
+          large
+        />
+      </div>
+
+      <Field label={copy3.quickNotes}>
+        <Textarea
+          value={d.notes}
+          onChange={(e) => u({ notes: e.target.value })}
+          placeholder={copy3.quickNotesPlaceholder}
+          className="bg-card/60 border-white/[0.08] focus-visible:ring-primary/40 min-h-[120px] resize-none rounded-xl text-[16px]"
+        />
+      </Field>
     </div>
   );
 }
@@ -791,6 +1379,7 @@ function Step6({ d, onSave, isSaving, saveError, saveLabel }: { d: WizardData; o
 
 export default function AddTasting() {
   const { copy, language } = useTastingCopy();
+  const { copy3 } = useTasting3Copy();
   const { id } = useParams<{ id?: string }>();
   const isEditing = Boolean(id);
   const [, setLocation] = useLocation();
@@ -799,11 +1388,17 @@ export default function AddTasting() {
   const existingTasting = id ? getTasting(id) : undefined;
   const draftStorageKey = id ? `${DRAFT_STORAGE_KEY}:edit:${id}` : DRAFT_STORAGE_KEY;
   const initialDraft = useRef<TastingDraftSnapshot | null>(readTastingDraft(draftStorageKey));
-  const [step, setStep] = useState(initialDraft.current?.step ?? 1);
-  const [direction, setDirection] = useState(1);
+
   const [data, setData] = useState<WizardData>(
-    initialDraft.current?.data ?? (existingTasting ? tastingToWizardData(existingTasting) : DEFAULT),
+    existingTasting ? tastingToWizardData(existingTasting) : DEFAULT,
   );
+  const [step, setStep] = useState(1);
+  const [mode, setMode] = useState<TastingMode | null>(
+    initialDraft.current ? null : (isEditing ? 'professional' : null),
+  );
+  const [draftChoicePending, setDraftChoicePending] = useState(Boolean(initialDraft.current));
+  const [direction, setDirection] = useState(1);
+  const [customTemplates, setCustomTemplates] = useState<RecipeTemplate[]>(readCustomRecipeTemplates);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
@@ -815,18 +1410,45 @@ export default function AddTasting() {
   const lastKeyboardInsetRef = useRef(0);
   const dataRef = useRef(data);
   const stepRef = useRef(step);
+  const modeRef = useRef<TastingMode | null>(mode);
 
-  const update = useCallback((patch: Partial<WizardData>) => setData((prev) => ({ ...prev, ...patch })), []);
+  const update = useCallback((patch: Partial<WizardData>) => {
+    setData((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const recent = useMemo(() => getRecentTastingValues(tastings), [tastings]);
+  const templates = useMemo(
+    () => [...BUILT_IN_RECIPE_TEMPLATES, ...customTemplates],
+    [customTemplates],
+  );
+  const previousBrew = useMemo(
+    () => findPreviousBrew(tastings, data.coffeeName, data.roaster, id),
+    [data.coffeeName, data.roaster, id, tastings],
+  );
+
+  const flowSteps: readonly number[] = mode === 'quick' ? QUICK_FLOW : PROFESSIONAL_FLOW;
+  const currentFlowIndex = Math.max(0, flowSteps.indexOf(step));
+  const isLastStep = currentFlowIndex === flowSteps.length - 1;
 
   useEffect(() => {
     dataRef.current = data;
     stepRef.current = step;
-    const timeoutId = window.setTimeout(() => writeTastingDraft(data, step, draftStorageKey), 250);
+    modeRef.current = mode;
+
+    if (!mode || draftChoicePending || !isDraftMeaningful(data)) return;
+
+    const timeoutId = window.setTimeout(
+      () => writeTastingDraft(data, step, mode, draftStorageKey),
+      250,
+    );
     return () => window.clearTimeout(timeoutId);
-  }, [data, step]);
+  }, [data, draftChoicePending, draftStorageKey, mode, step]);
 
   useEffect(() => {
-    const persistImmediately = () => writeTastingDraft(dataRef.current, stepRef.current, draftStorageKey);
+    const persistImmediately = () => {
+      if (!modeRef.current || !isDraftMeaningful(dataRef.current)) return;
+      writeTastingDraft(dataRef.current, stepRef.current, modeRef.current, draftStorageKey);
+    };
     const isTextEntryElement = (element: Element | null) =>
       element instanceof HTMLInputElement ||
       element instanceof HTMLTextAreaElement ||
@@ -862,8 +1484,6 @@ export default function AddTasting() {
           : 0;
         const nextInset = rawInset < 24 ? 0 : Math.round(rawInset);
 
-        // Mobile keyboards report several tiny intermediate viewport sizes while
-        // animating. Ignore those micro changes so the form does not shake.
         if (Math.abs(nextInset - lastKeyboardInsetRef.current) > 10 || nextInset === 0) {
           lastKeyboardInsetRef.current = nextInset;
           document.documentElement.style.setProperty('--keyboard-inset', `${nextInset}px`);
@@ -878,8 +1498,6 @@ export default function AddTasting() {
       if (!(target instanceof HTMLElement)) return;
       if (keyboardScrollTimerRef.current !== null) window.clearTimeout(keyboardScrollTimerRef.current);
 
-      // Wait until the native keyboard finishes its opening animation. We scroll
-      // once per focus change, never on every viewport event or keystroke.
       keyboardScrollTimerRef.current = window.setTimeout(() => {
         const scroller = contentScrollRef.current;
         if (!scroller || document.activeElement !== target) return;
@@ -961,12 +1579,79 @@ export default function AddTasting() {
       document.documentElement.style.removeProperty('--app-height');
       document.documentElement.style.removeProperty('--keyboard-inset');
     };
-  }, []);
+  }, [draftStorageKey]);
 
-  const goNext = () => { setDirection(1); setStep((s) => Math.min(s + 1, 6)); };
+  const closeWizard = () => {
+    setLocation(isEditing && id ? `/tasting/${id}` : '/');
+  };
+
+  const selectMode = (nextMode: TastingMode) => {
+    setMode(nextMode);
+    setStep(1);
+    setDirection(1);
+  };
+
+  const continueDraft = () => {
+    const draft = initialDraft.current;
+    if (!draft) return;
+
+    const nextFlow: readonly number[] = draft.mode === 'quick' ? QUICK_FLOW : PROFESSIONAL_FLOW;
+    setData(draft.data);
+    setStep(nextFlow.includes(draft.step) ? draft.step : 1);
+    setMode(draft.mode);
+    setDraftChoicePending(false);
+  };
+
+  const discardDraft = () => {
+    clearTastingDraft(draftStorageKey);
+    initialDraft.current = null;
+    setDraftChoicePending(false);
+    setData(existingTasting ? tastingToWizardData(existingTasting) : DEFAULT);
+    setStep(1);
+    setMode(isEditing ? 'professional' : null);
+  };
+
+  const goNext = () => {
+    const next = flowSteps[currentFlowIndex + 1];
+    if (next === undefined) return;
+    setDirection(1);
+    setStep(next);
+  };
+
   const goBack = () => {
-    if (step === 1) { setLocation(isEditing && id ? `/tasting/${id}` : '/'); return; }
-    setDirection(-1); setStep((s) => s - 1);
+    if (currentFlowIndex === 0) {
+      closeWizard();
+      return;
+    }
+
+    setDirection(-1);
+    setStep(flowSteps[currentFlowIndex - 1]);
+  };
+
+  const saveCurrentRecipeTemplate = () => {
+    if (!data.doseGrams || !data.beverageWeightGrams) return;
+
+    const ratio = calculateRatio(data.doseGrams, data.beverageWeightGrams);
+    const nextTemplate: RecipeTemplate = {
+      id: `custom-${Date.now()}`,
+      method: canonicalizeBrewMethod(data.brewMethod),
+      doseGrams: data.doseGrams,
+      beverageWeightGrams: data.beverageWeightGrams,
+      brewTimeSeconds: data.brewTimeSeconds,
+      waterTemperatureCelsius: data.waterTemperatureCelsius,
+      bloomSeconds: data.bloomSeconds,
+      targetRatio: data.targetRatio || ratio?.toFixed(1) || '',
+      custom: true,
+    };
+    const next = [nextTemplate, ...customTemplates].slice(0, 5);
+    setCustomTemplates(next);
+    writeCustomRecipeTemplates(next);
+  };
+
+  const deleteRecipeTemplate = (templateId: string) => {
+    const next = customTemplates.filter((template) => template.id !== templateId);
+    setCustomTemplates(next);
+    writeCustomRecipeTemplates(next);
   };
 
   const canGoNext = step === 1 ? data.coffeeName.trim().length > 0 : true;
@@ -1042,68 +1727,144 @@ export default function AddTasting() {
 
   const renderStep = () => {
     switch (step) {
-      case 1: return <Step1 d={data} u={update} />;
-      case 2: return <Step2 d={data} u={update} />;
-      case 3: return <Step3 d={data} u={update} />;
-      case 4: return <Step4 d={data} u={update} />;
-      case 5: return <Step5 d={data} u={update} />;
-      case 6: return <Step6 d={data} onSave={handleSave} isSaving={isSaving} saveError={saveError} saveLabel={isEditing ? copy.wizard.saveChanges : copy.wizard.saveTasting} />;
-      default: return null;
+      case 1:
+        return <Step1 d={data} u={update} mode={mode ?? 'professional'} recent={recent} />;
+      case 2:
+        return (
+          <Step2
+            d={data}
+            u={update}
+            recent={recent}
+            templates={templates}
+            onSaveTemplate={saveCurrentRecipeTemplate}
+            onDeleteTemplate={deleteRecipeTemplate}
+            previous={previousBrew}
+          />
+        );
+      case 3:
+        return <Step3 d={data} u={update} />;
+      case 4:
+        return <Step4 d={data} u={update} />;
+      case 5:
+        return <Step5 d={data} u={update} />;
+      case 6:
+        return (
+          <Step6
+            d={data}
+            onSave={handleSave}
+            isSaving={isSaving}
+            saveError={saveError}
+            saveLabel={isEditing ? copy.wizard.saveChanges : copy.wizard.saveTasting}
+          />
+        );
+      case 7:
+        return <QuickImpressionStep d={data} u={update} />;
+      default:
+        return null;
     }
   };
 
+  if (draftChoicePending && initialDraft.current) {
+    return (
+      <DraftRecovery
+        draft={initialDraft.current}
+        onContinue={continueDraft}
+        onDiscard={discardDraft}
+        onClose={closeWizard}
+      />
+    );
+  }
+
+  if (!mode) {
+    return <ModePicker onSelect={selectMode} onClose={closeWizard} />;
+  }
+
+  const nextStep = flowSteps[currentFlowIndex + 1];
+
   return (
-    <div className={`flex flex-col bg-background overflow-hidden iphone-wizard ${isKeyboardOpen ? 'iphone-wizard--keyboard' : ''}`} style={{ height: 'var(--app-height, 100dvh)' }}>
-      {/* Header */}
+    <div
+      className={`flex flex-col bg-background overflow-hidden iphone-wizard ${isKeyboardOpen ? 'iphone-wizard--keyboard' : ''}`}
+      style={{ height: 'var(--app-height, 100dvh)' }}
+    >
       <header className="px-4 iphone-safe-top pb-3 flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
-        <motion.button onClick={goBack} whileTap={{ scale: 0.88 }}
-          className="w-9 h-9 flex items-center justify-center rounded-full bg-card/60 border border-white/[0.08] text-muted-foreground hover:text-foreground transition-colors"
-          data-testid="btn-wizard-back">
-          {step === 1 ? <X size={17} /> : <ChevronLeft size={20} />}
-        </motion.button>
+          <motion.button
+            onClick={goBack}
+            whileTap={{ scale: 0.88 }}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-card/60 border border-white/[0.08] text-muted-foreground hover:text-foreground transition-colors"
+            data-testid="btn-wizard-back"
+          >
+            {currentFlowIndex === 0 ? <X size={17} /> : <ChevronLeft size={20} />}
+          </motion.button>
 
-        <AnimatePresence mode="wait">
-          <motion.h1 key={step} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-            className="text-[10px] uppercase tracking-widest font-bold text-primary">
-            {isEditing ? copy.wizard.editing : copy.wizard.newTasting}
-          </motion.h1>
-        </AnimatePresence>
+          <div className="text-center">
+            <AnimatePresence mode="wait">
+              <motion.h1
+                key={`${step}-${mode}`}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                className="text-[10px] uppercase tracking-widest font-bold text-primary"
+              >
+                {isEditing ? copy.wizard.editing : copy.wizard.newTasting}
+              </motion.h1>
+            </AnimatePresence>
+            {!isEditing && (
+              <button
+                type="button"
+                onClick={() => setMode(null)}
+                className="text-[9px] text-muted-foreground mt-1 hover:text-foreground"
+              >
+                {mode === 'quick' ? copy3.quickBadge : copy3.professionalBadge}
+              </button>
+            )}
+          </div>
 
-        <div className="bg-card/60 border border-white/[0.08] rounded-full px-3 py-1">
-          <span className="text-[12px] font-bold text-muted-foreground tabular-nums">
-            {step}<span className="text-muted-foreground/35"> / 6</span>
-          </span>
-        </div>
+          <div className="bg-card/60 border border-white/[0.08] rounded-full px-3 py-1">
+            <span className="text-[12px] font-bold text-muted-foreground tabular-nums">
+              {currentFlowIndex + 1}
+              <span className="text-muted-foreground/35"> / {flowSteps.length}</span>
+            </span>
+          </div>
         </div>
       </header>
 
-      {/* Progress */}
       <div className="px-4 pb-3 flex-shrink-0">
         <div className="flex gap-1.5 mb-2">
-          {Array.from({ length: 6 }, (_, i) => (
-            <motion.div key={i}
-              animate={{ width: i + 1 === step ? 20 : 6, backgroundColor: i + 1 <= step ? 'hsl(33 62% 61%)' : 'rgba(255,255,255,0.07)' }}
+          {flowSteps.map((flowStep, index) => (
+            <motion.div
+              key={flowStep}
+              animate={{
+                width: index === currentFlowIndex ? 20 : 6,
+                backgroundColor: index <= currentFlowIndex ? 'hsl(33 62% 61%)' : 'rgba(255,255,255,0.07)',
+              }}
               transition={{ type: 'spring', stiffness: 300, damping: 28 }}
               className="h-1.5 rounded-full"
             />
           ))}
         </div>
         <div className="h-[2px] bg-white/[0.04] rounded-full overflow-hidden">
-          <motion.div className="h-full bg-gradient-to-r from-primary/60 to-primary rounded-full"
-            animate={{ width: `${(step / 6) * 100}%` }}
-            transition={{ type: 'spring', stiffness: 260, damping: 28 }} />
+          <motion.div
+            className="h-full bg-gradient-to-r from-primary/60 to-primary rounded-full"
+            animate={{ width: `${((currentFlowIndex + 1) / flowSteps.length) * 100}%` }}
+            transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+          />
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-hidden relative min-h-0">
         <AnimatePresence custom={direction} mode="wait">
-          <motion.div key={step} custom={direction}
-            variants={slideVariants} initial="enter" animate="center" exit="exit"
+          <motion.div
+            key={`${mode}-${step}`}
+            custom={direction}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
             transition={slideTransition}
             ref={contentScrollRef}
-            className={`absolute inset-0 overflow-y-auto overscroll-contain ${isKeyboardOpen ? 'keyboard-scroll-active' : ''}`}>
+            className={`absolute inset-0 overflow-y-auto overscroll-contain ${isKeyboardOpen ? 'keyboard-scroll-active' : ''}`}
+          >
             <div
               className={`px-4 pt-4 ${isKeyboardOpen ? '' : 'pb-12'}`}
               style={isKeyboardOpen ? { paddingBottom: 'calc(var(--keyboard-inset, 0px) + 24px)' } : undefined}
@@ -1115,9 +1876,8 @@ export default function AddTasting() {
         </AnimatePresence>
       </div>
 
-      {/* Footer — hidden while the mobile keyboard is open */}
       <AnimatePresence initial={false}>
-        {step < 6 && !isKeyboardOpen && (
+        {!isLastStep && !isKeyboardOpen && (
           <motion.div
             key="wizard-footer"
             initial={{ opacity: 0, y: 18 }}
@@ -1126,15 +1886,19 @@ export default function AddTasting() {
             transition={{ duration: 0.16, ease: 'easeOut' }}
             className="px-4 py-4 iphone-footer-safe border-t border-white/[0.05] bg-background/88 backdrop-blur-sm flex-shrink-0"
           >
-            <motion.button type="button" onClick={goNext} disabled={!canGoNext}
+            <motion.button
+              type="button"
+              onClick={goNext}
+              disabled={!canGoNext}
               whileTap={canGoNext ? { scale: 0.97 } : undefined}
               className={`w-full h-12 rounded-full font-semibold text-[15px] flex items-center justify-center gap-1.5 transition-all ${
                 canGoNext
                   ? 'bg-primary text-primary-foreground shadow-[0_4px_20px_rgba(217,163,95,0.2)] hover:brightness-110'
                   : 'bg-card/50 text-muted-foreground/35 cursor-not-allowed'
               }`}
-              data-testid="btn-wizard-next">
-              {step === 5 ? copy.wizard.review : copy.wizard.continue}
+              data-testid="btn-wizard-next"
+            >
+              {nextStep === 6 ? copy.wizard.review : copy.wizard.continue}
               {canGoNext && <ChevronRight size={17} />}
             </motion.button>
           </motion.div>
